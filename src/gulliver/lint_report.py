@@ -64,6 +64,10 @@ RULE_DOCS: dict[str, tuple[str, str, str, str]] = {
                       "repeats per matching row, so the total is multiplied (fan trap). Only this naming pattern, "
                       "and only when the many side is a plain table.",
               "Aggregate the many side per key in a subquery before the join.", "none"),
+    "GV016": ("warn", "ORDER BY RANDOM() / RAND() generates and orders a random key for every input row, even "
+                      "with LIMIT.",
+              "For random row sampling, consider TABLESAMPLE (Postgres, BigQuery, Snowflake) or USING SAMPLE "
+              "(DuckDB); check the engine's sampling semantics.", "none"),
     "GV900": ("warn", "Gulliver could not parse a statement (dialect, or dbt Jinja it cannot render), so it was not "
                       "checked. Only in file lint.", "Set the dialect, or simplify the Jinja.", "none"),
     "GV901": ("warn", "A `gulliver: ignore` comment that ignores nothing: always for an unreadable rule list "

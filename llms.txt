@@ -53,6 +53,9 @@ Do not run the same query again and again. If `gulliver_run` returns `block` wit
 
 ## Pipeline work
 
+- Lint warning GV016 flags `ORDER BY RANDOM()` / `RAND()`, even with LIMIT. For random row sampling,
+  consider `TABLESAMPLE` or DuckDB's `USING SAMPLE`; check the engine's sampling semantics first.
+
 - Before changing or dropping a column in a model or source: `gulliver_impact` with the models folder.
 - After refactoring a model, migrating it to another engine or making it incremental: `gulliver_diff` between the
   old and the new query with the key. Say "identical" only when `identical` is true.

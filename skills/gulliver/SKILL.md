@@ -74,6 +74,7 @@ and returns a counterexample when rows differ; a test is not a proof, so labels 
 | GV011 window-without-partition | add PARTITION BY |
 | GV014 sensitive-column-in-output | leave the column out, or aggregate it (`COUNT(email)` is fine) |
 | GV015 fan-trap | aggregate the many side in a subquery first, then join |
+| GV016 order-by-random | for random row sampling, consider TABLESAMPLE / USING SAMPLE; check engine semantics |
 
 ## Reading the numbers honestly
 

@@ -717,6 +717,7 @@ The action posts one PR comment and updates it on every push, writes the job sum
 | GV013 | leading-wildcard-like | info |
 | GV014 | sensitive-column-in-output | info (personal data, masked secret) / warn (unmasked secret) |
 | GV015 | fan-trap | warn |
+| GV016 | order-by-random | warn |
 | GV900 | parse-error (file lint only) | warn |
 | GV901 | unused-ignore (an unreadable or unused `gulliver: ignore`) | warn |
 

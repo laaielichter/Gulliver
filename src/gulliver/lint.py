@@ -33,6 +33,7 @@ RULES = {
     "GV013": "leading-wildcard-like",
     "GV014": "sensitive-column-in-output",
     "GV015": "fan-trap",
+    "GV016": "order-by-random",
 }
 
 
@@ -131,6 +132,15 @@ def lint(statement_tree: exp.Expression, dialect: str = "duckdb",
             add("GV006", "info",
                 "ORDER BY inside a subquery without LIMIT is usually ignored but may still cost a sort.",
                 "Remove the inner ORDER BY.", select.args["order"])
+
+    # GV016 order-by-random, including inner queries and expressions such as ABS(RANDOM()).
+    for order in tree.find_all(exp.Order):
+        if order.find(exp.Rand) is not None:
+            add("GV016", "warn",
+                "ORDER BY RANDOM() / RAND() generates a random key for every input row and orders those keys, "
+                "even with LIMIT.",
+                "For random row sampling, consider TABLESAMPLE (Postgres, BigQuery, Snowflake) or USING SAMPLE "
+                "(DuckDB). Check the engine's sampling semantics before replacing the query.", order)
 
     # GV003 cartesian-join / GV008 non-equi-join
     for select in tree.find_all(exp.Select):

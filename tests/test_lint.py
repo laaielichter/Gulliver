@@ -1,3 +1,5 @@
+import pytest
+
 from gulliver.lint import lint
 from gulliver.sqlsafety import classify
 
@@ -55,6 +57,43 @@ def test_function_on_filter_column():
 
 def test_order_without_limit():
     assert rules("select id from events order by id")["GV006"] == "warn"
+
+
+@pytest.mark.parametrize("dialect, function", [("duckdb", "random()"), ("postgres", "random()"),
+                                               ("bigquery", "rand()")])
+@pytest.mark.parametrize("suffix", ["", " limit 100"])
+def test_order_by_random_warns_even_with_limit(dialect, function, suffix):
+    stmt = classify(f"select id from events order by {function}{suffix}", dialect)
+    finding, = [f for f in lint(stmt.select, dialect) if f.rule == "GV016"]
+    assert finding.severity == "warn"
+    assert finding.name == "order-by-random"
+    assert "TABLESAMPLE" in finding.fix and "USING SAMPLE" in finding.fix
+    assert finding.node is not None
+
+
+@pytest.mark.parametrize("sql", [
+    "select random() as r from events limit 10",
+    "select id from events where random() < 0.1 limit 10",
+    "select random() as r from events order by id limit 10",
+    "select id from events order by id limit 10",
+])
+def test_random_outside_order_by_does_not_warn(sql):
+    assert "GV016" not in rules(sql)
+
+
+def test_order_by_random_inside_subquery_and_expression():
+    sql = "select id from (select id from events order by abs(random()) limit 100) sample limit 10"
+    assert rules(sql)["GV016"] == "warn"
+
+
+def test_order_by_random_is_listed_with_rule_metadata():
+    from gulliver.lint_report import rules as rule_docs
+
+    rule, = [r for r in rule_docs() if r["rule"] == "GV016"]
+    assert rule["name"] == "order-by-random"
+    assert rule["default_severity"] == "warn"
+    assert rule["autofix"] == "none"
+    assert "TABLESAMPLE" in rule["fix"] and "USING SAMPLE" in rule["fix"]
 
 
 def test_count_distinct_union_window_not_in():
