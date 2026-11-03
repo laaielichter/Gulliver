@@ -5,6 +5,10 @@
 ### Fixed
 - `gulliver_drift` is no longer annotated read-only. It saves a local snapshot file (on the first call, and with `save=true`), so it now reports `readOnlyHint: false`, `destructiveHint: false`. It still only reads the database. Reported by Glama's tool scoring.
 - New test `tests/test_tool_annotations.py`: read-only tools may not describe writes.
+- `gulliver_check` is no longer annotated read-only either: it stores the row count locally for the next `max_change_pct` comparison.
+
+### Changed
+- All 16 MCP tool descriptions now say when to use the tool instead of its siblings, what it costs, what it stores locally and what each status means. Parameter descriptions explain defaults and effects (e.g. `rehearse.method`, `fix.seed`/`cases`, `diff.columns`, `impact.target` matching). Based on Glama's tool scoring.
 
 ## 0.3.0 - 2026-11-02
 
