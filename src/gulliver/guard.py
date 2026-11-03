@@ -275,7 +275,7 @@ INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
                              r"</?(?:system|instructions?|tool_call)>|^\s*(?:system|assistant)\s*:", re.I | re.M)),
     # tool names and MCP, not any "use the tool"
     ("tool_call", re.compile(r"\bgulliver_[a-z_]+\b|\bgulliver\s+(?:approve|run)\b|\bgv-\d{8}-\d{6}-[a-z]{3}-"
-                             r"[0-9a-f]{4,8}\b|\b(?:call|use|invoke|execute) (?:the )?(?:[\w-]+ )?mcp\b|"
+                             r"[0-9a-f]{4,16}\b|\b(?:call|use|invoke|execute) (?:the )?(?:[\w-]+ )?mcp\b|"
                              r"\b(?:call|use|invoke|execute) (?:the )?[a-z]+_[a-z_]+ tools?\b|"
                              r"\bmcp (?:server|tool)s?\b", re.I)),
     ("exfil_link", re.compile(r"!\[[^\]]*\]\(\s*https?://|<img\b[^>]*\bsrc\s*=\s*['\"]?https?://", re.I)),

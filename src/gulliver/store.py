@@ -66,8 +66,9 @@ class Store:
 
     # -- receipts ------------------------------------------------------------------
     def new_id(self, action: str) -> str:
-        # 32 random bits: parallel writers (several MCP sessions, diff/check internals) must not share an id
-        return f"gv-{now_utc().strftime('%Y%m%d-%H%M%S')}-{action[:3]}-{secrets.token_hex(4)}"
+        # 64 random bits: parallel writers (several MCP sessions, diff/check internals) must not share an id.
+        # 32 bits collided about 1 in 300 times over 5000 ids in one second (birthday bound).
+        return f"gv-{now_utc().strftime('%Y%m%d-%H%M%S')}-{action[:3]}-{secrets.token_hex(8)}"
 
     def save_receipt(self, receipt: dict[str, Any]) -> str:
         self._ensure()
