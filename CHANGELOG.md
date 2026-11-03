@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- Lint rule GV016 `order-by-random`: warns on `ORDER BY RANDOM()` / `RAND()`, also with LIMIT, and points to `TABLESAMPLE` / `USING SAMPLE` for random sampling (#23).
+
+### Thanks
+- @HarshRajSinghania for the read-only Postgres role docs (#8), which shaped the section that shipped in 0.3.0.
+- @YinL-k for lint rule GV016 (#23).
+- @ShahadatTest for `gulliver fix -o/--output` (#10) and reading and writing SQL files as UTF-8 (#15).
+
 ### Fixed
 - `gulliver_drift` is no longer annotated read-only. It saves a local snapshot file (on the first call, and with `save=true`), so it now reports `readOnlyHint: false`, `destructiveHint: false`. It still only reads the database. Reported by Glama's tool scoring.
 - New test `tests/test_tool_annotations.py`: read-only tools may not describe writes.
