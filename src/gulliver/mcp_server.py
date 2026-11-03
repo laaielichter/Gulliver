@@ -85,6 +85,8 @@ CONNECTION = Annotated[str | None, Field(description="Connection name from gulli
 
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 RUNS_QUERIES = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=False, openWorldHint=False)
+# Writes only Gulliver's own local snapshot file; never touches the database.
+SAVES_SNAPSHOT = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 GATED_RUN = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False)
 GATED_WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=False)
 ToolResult = native.ToolResult  # outputSchema: typed status + next_step, other fields allowed
@@ -269,10 +271,11 @@ def _register_feature_tools(server: Any) -> None:
         except Exception as exc:
             return {"status": "error", "error": str(exc), "next_step": "Check the models path."}
 
-    @server.tool(name="gulliver_drift", annotations=RUNS_QUERIES,
+    @server.tool(name="gulliver_drift", annotations=SAVES_SNAPSHOT,
                  description="Schema drift: compare the connection's tables and columns with the last snapshot "
-                             "(the first call takes the snapshot). With models it also lists the models that the "
-                             "removed or retyped columns break.")
+                             "(the first call saves a local snapshot file; save=true replaces it). Only reads the "
+                             "database. With models it also lists the models that the removed or retyped columns "
+                             "break.")
     def gulliver_drift(
         connection: CONNECTION = None,
         models_dir: MODELS = None,
