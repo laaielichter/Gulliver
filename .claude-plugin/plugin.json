@@ -7,6 +7,8 @@
   },
   "homepage": "https://laaielichter.github.io/Gulliver/",
   "repository": "https://github.com/laaielichter/Gulliver",
+  "supportUrl": "https://github.com/laaielichter/Gulliver/issues",
+  "privacyPolicyUrl": "https://github.com/laaielichter/Gulliver/blob/main/PRIVACY.md",
   "license": "MIT",
   "keywords": [
     "agent-tools",
