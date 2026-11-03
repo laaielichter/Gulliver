@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `gulliver_drift` is no longer annotated read-only. It saves a local snapshot file (on the first call, and with `save=true`), so it now reports `readOnlyHint: false`, `destructiveHint: false`. It still only reads the database. Reported by Glama's tool scoring.
+- New test `tests/test_tool_annotations.py`: read-only tools may not describe writes.
+
 ## 0.3.0 - 2026-11-02
 
 ### Breaking
