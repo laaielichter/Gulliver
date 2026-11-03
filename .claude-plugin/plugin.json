@@ -44,7 +44,7 @@
     "gulliver": {
       "command": "uvx",
       "args": [
-        "gulliver-mcp"
+        "gulliver-mcp==0.3.0"
       ]
     }
   }
