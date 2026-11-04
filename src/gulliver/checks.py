@@ -120,6 +120,49 @@ def _as_utc(value: Any) -> datetime | None:
         return None
 
 
+def sample_sql(engine: Engine, source: str, spec: CheckSpec, outcome: dict[str, Any],
+               limit: int, where: str | None = None) -> tuple[str, str] | None:
+    """Group offending values, keeping the aggregate check's NULL and filter semantics.
+
+    Return the SQL and a count alias that cannot collide with a key column.
+    Composite grouping deliberately keeps the actual columns rather than serializing keys.
+    """
+    q = engine.quote
+    kind = outcome["check"]
+    column = outcome.get("column")
+    conditions = [f"({where})"] if where else []
+    having = ""
+    if kind == "unique":
+        columns = next(key for key in spec.unique if ",".join(key) == column)
+        if len(columns) == 1:
+            conditions.append(f"{q(columns[0])} IS NOT NULL")
+        having = " HAVING COUNT(*) > 1"
+    elif kind == "accepted_values":
+        columns = [column]
+        values = ", ".join(_lit(v) for v in spec.accepted[column])
+        conditions.append(f"{q(column)} IS NOT NULL AND CAST({q(column)} AS {engine.text_type}) NOT IN ({values})")
+    elif kind == "range":
+        columns = [column]
+        lo, hi = spec.ranges[column]
+        bounds = []
+        if lo is not None:
+            bounds.append(f"{q(column)} < {lo}")
+        if hi is not None:
+            bounds.append(f"{q(column)} > {hi}")
+        conditions.append("(" + (" OR ".join(bounds) or "FALSE") + ")")
+    else:
+        return None
+    alias = "gv_sample_count"
+    while alias.lower() in {c.lower() for c in columns}:
+        alias += "_"
+    keys = ", ".join(q(c) for c in columns)
+    sql = f"SELECT {keys}, COUNT(*) AS {q(alias)} FROM {source}"
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += f" GROUP BY {keys}{having} ORDER BY {q(alias)} DESC LIMIT {limit}"
+    return sql, alias
+
+
 def evaluate(row: dict[str, Any], plan: list[dict], spec: CheckSpec, previous_rows: int | None,
              now: datetime | None = None) -> list[dict[str, Any]]:
     now = now or datetime.now(timezone.utc)

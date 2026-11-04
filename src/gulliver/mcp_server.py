@@ -397,7 +397,8 @@ def _register_feature_tools(server: Any) -> None:
                              "is reported; status 'fail' means at least one failed. It stores the row count in the "
                              "local .gulliver folder for the next max_change_pct comparison. Give at least one "
                              "check. Use it after a load or before trusting data; use gulliver_diff to compare two "
-                             "versions.")
+                             "versions. Optional samples (0-20, default 0) adds one separately budget-gated "
+                             "query per failed unique/accepted/range check; values follow the result policy.")
     def gulliver_check(
         target: Annotated[str, Field(description="Table name or a SELECT to check.")],
         connection: CONNECTION = None,
@@ -411,9 +412,12 @@ def _register_feature_tools(server: Any) -> None:
         min_rows: Annotated[int | None, Field(description="Fail when fewer rows.", ge=0)] = None,
         max_change_pct: Annotated[float | None, Field(description="Fail when the row count moved more than this "
                                                                   "percent since the last check.", ge=0)] = None,
+        samples: Annotated[int, Field(description="Up to N offending values per supported failed check. "
+                                                 "Extra queries cost scans; values are guarded.", ge=0, le=20)] = 0,
     ) -> ToolResult:
         return _guard(features.check, target, connection=connection, where=where, unique=unique, not_null=not_null,
-                      accepted=accepted, ranges=ranges, fresh=fresh, min_rows=min_rows, max_change_pct=max_change_pct)
+                      accepted=accepted, ranges=ranges, fresh=fresh, min_rows=min_rows, max_change_pct=max_change_pct,
+                      samples=samples)
 
     @server.tool(name="gulliver_top", annotations=RUNS_QUERIES,
                  description="Workload review: the most expensive repeated queries (grouped by shape, literals "

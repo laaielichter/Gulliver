@@ -15,9 +15,9 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from . import checks as checks_mod
-from . import diffing, lineage, runaway
+from . import diffing, guard, lineage, runaway
 from . import incremental as incr
-from .config import ConfigError, Settings
+from .config import ConfigError, Connection, Settings
 from .core import _engine, _error, _fmt_bytes, _fmt_usd, _gate, _store, _table_infos
 from .engines import Engine, EngineError, dialect_for
 from .lint import lint
@@ -418,10 +418,48 @@ def _cutoff_literal(max_value: Any, step: timedelta) -> tuple[str, str]:
 
 
 # -- data quality checks --------------------------------------------------------------------------
+def _check_samples(settings: Settings, conn: Connection, engine: Engine, source: str, spec: checks_mod.CheckSpec,
+                   outcomes: list[dict[str, Any]], limit: int, where: str | None) -> list[dict[str, Any]]:
+    runs = []
+    for outcome in outcomes:
+        if outcome.get("passed"):
+            continue
+        query = checks_mod.sample_sql(engine, source, spec, outcome, limit, where)
+        if query is None:
+            continue
+        sql, count_column = query
+        try:
+            dialect = dialect_for(engine.name)
+            stmt = classify(sql, dialect, policy_for(conn))
+            infos, _ = _table_infos(engine, stmt)
+            _, shield = guard.check_query(settings, conn, stmt, dialect, infos, [])
+            if shield["blocks"]:
+                raise Blocked({"status": "block", "next_step": "; ".join(shield["blocks"])})
+            res = _gated_run(settings, conn.name, engine, sql, "check_samples",
+                             preview_rows=min(limit, settings.budget.max_output_rows))
+            runs.append({"cost_usd": res["cost_usd"], "bytes": res["bytes"]})
+            protected = guard.guard_preview(settings, conn, res["columns"], res["rows"], {"sql_hash": stmt.sql_hash})
+            rows = protected.pop("preview")
+            outcome["samples"] = [{"values": {k: v for k, v in row.items() if k != count_column},
+                                   "rows": row.get(count_column)} for row in rows]
+            outcome["samples_guard"] = protected
+            outcome["samples_cost_usd"] = res["cost_usd"]
+            outcome["samples_scanned"] = _fmt_bytes(res["bytes"]) if res["bytes"] is not None else None
+        except Blocked as blocked:
+            outcome["samples_skipped"] = blocked.result
+        except EngineError as exc:
+            outcome["samples_skipped"] = {
+                "status": "error", "next_step": "The sample query failed; the check result is unchanged.",
+                "error": guard.scrub_error(settings, conn, sql, dialect_for(engine.name), str(exc))}
+    return runs
+
+
 def check(settings: Settings, target: str, connection: str | None = None, where: str | None = None,
           unique: list[str] | None = None, not_null: list[str] | None = None, accepted: list[str] | None = None,
           ranges: list[str] | None = None, fresh: list[str] | None = None, min_rows: int | None = None,
-          max_change_pct: float | None = None) -> dict[str, Any]:
+          max_change_pct: float | None = None, samples: int = 0) -> dict[str, Any]:
+    if isinstance(samples, bool) or not isinstance(samples, int) or not 0 <= samples <= 20:
+        return _error("samples must be an integer from 0 to 20.")
     try:
         spec = checks_mod.parse_spec(unique, not_null, accepted, ranges, fresh, min_rows, max_change_pct)
     except ValueError as exc:
@@ -438,16 +476,19 @@ def check(settings: Settings, target: str, connection: str | None = None, where:
         with _engine(settings, connection) as (conn, engine):
             sql, plan = checks_mod.build_sql(engine, source, spec, where)
             res = _gated_run(settings, conn.name, engine, sql, "check", preview_rows=1)
+            row = res["rows"][0] if res["rows"] else {}
+            outcomes = checks_mod.evaluate(row, plan, spec, previous.get("rows") if previous else None)
+            sample_runs = _check_samples(settings, conn, engine, source, spec, outcomes, samples, where) if samples else []
     except Blocked as blocked:
         return {**result, **blocked.result}
     except (EngineError, ConfigError) as exc:
         return _error(str(exc))
-    row = res["rows"][0] if res["rows"] else {}
-    outcomes = checks_mod.evaluate(row, plan, spec, previous.get("rows") if previous else None)
     failed = [o for o in outcomes if not o.get("passed")]
     store._ensure()
     history_path.parent.mkdir(parents=True, exist_ok=True)
     history_path.write_text(json.dumps({"rows": int(row.get("gv_rows") or 0), "at": iso(now_utc())}))
+    costs = [r["cost_usd"] for r in [res, *sample_runs]]
+    scans = [r["bytes"] for r in [res, *sample_runs]]
     result.update(
         status="fail" if failed else "ok",
         connection=conn.name,
@@ -456,12 +497,16 @@ def check(settings: Settings, target: str, connection: str | None = None, where:
         sql_hash=sql_fingerprint(sql),
         checks=outcomes,
         failed=len(failed),
-        cost_usd=res["cost_usd"],
-        scanned=_fmt_bytes(res["bytes"]) if res["bytes"] else None,
+        cost_usd=sum(costs) if all(c is not None for c in costs) else None,
+        scanned=_fmt_bytes(sum(scans)) if all(b is not None for b in scans) else None,
         next_step=("All checks passed." if not failed else
                    f"{len(failed)} check(s) failed: " + ", ".join(
                        f"{o['check']}" + (f" on {o['column']}" if o.get("column") else "") for o in failed)
                    + ". Fix the data or the pipeline before using it."),
     )
+    if not samples and any(o["check"] in ("unique", "accepted_values", "range") for o in failed):
+        result["next_step"] += " Use --samples N (MCP samples, 1-20) for budget-checked, guarded examples."
+    if any("samples_guard" in o for o in outcomes):
+        result.update(untrusted=True, data_notice=guard.DATA_NOTICE)
     store.save_receipt(result)
     return result

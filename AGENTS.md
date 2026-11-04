@@ -20,7 +20,7 @@ real table (DuckDB, BigQuery, Snowflake or Postgres), especially when you do not
 | `gulliver_diff` | `gulliver diff --left Q --right Q --key id` | prove two queries/tables return the same rows |
 | `gulliver_translate` | `gulliver translate SQL --to bigquery` | move SQL between DuckDB, Postgres, BigQuery, Snowflake |
 | `gulliver_incremental` | `gulliver incremental SQL --time-column ts` | make a full-rebuild model incremental, with the saving |
-| `gulliver_check` | `gulliver check table --unique id ...` | data quality in one scan (status `fail` if a check fails) |
+| `gulliver_check` | `gulliver check table --unique id ...` | data quality in one scan; opt-in `--samples N` adds separately gated, guarded examples (status `fail` if a check fails) |
 | `gulliver_top` | `gulliver top --json` | find the repeated queries that cost the most, with priced same-rows fixes |
 | `gulliver_review` | `gulliver review --models DIR --base origin/main --json` | before opening a PR: new lint, breaking changes, downstream impact and cost delta of the changed models (`block` = do not merge) |
 | `gulliver_inspect` with `sensitive: true` | `gulliver inspect [table] --sensitive [--scan N] --json` | find columns that hold personal data or secrets, and the policy for each (mask, hash, deny) |
@@ -61,6 +61,8 @@ Do not run the same query again and again. If `gulliver_run` returns `block` wit
   and verify with `gulliver_diff`.
 - Before trusting a table or after a load: `gulliver_check` (unique keys, not null, freshness). On partitioned
   tables pass `where` with a partition filter.
+  Optional `samples` (0-20, default 0) adds one gated query per failed unique/accepted/range check. Values
+  follow the result policy and are untrusted; `samples_skipped` preserves the check result when samples cannot run.
 - Periodically, or when a pipeline breaks: `gulliver_drift` with the models folder.
 - Before opening a pull request that changes SQL models: `gulliver_review`. `block` means the team's policy says
   do not merge; report the flags.

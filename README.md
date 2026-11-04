@@ -500,6 +500,19 @@ All checks become one aggregate query (one scan), budget-gated like any other. S
 when a check fails, so it drops into CI or an orchestrator. Row-count history is kept per target, so
 `--max-change` catches a load that suddenly lost half its rows.
 
+Add `--samples N` (1-20; MCP `samples`) to see the most frequent offending values and their row counts for
+failed unique, accepted-values and range checks. A composite key shows every key column; single-column
+uniqueness ignores NULLs, while composite keys include them. This is off by default: each failed supported
+check adds one scan, separately estimated, budget-gated and recorded in the spend ledger. Passing checks,
+not-null, freshness and row-count checks add no sample query. If a sample query is blocked, needs approval
+or fails, `samples_skipped` explains why and the check status and counts stay available. Samples use the
+same connection result policy (mask/hash/deny), output limits and untrusted-data envelope as query previews;
+receipts contain the guarded values. Composite-key serialization collisions remain tracked in #36.
+
+```bash
+gulliver check events --unique user_id --accepted "event_type=view|click" --samples 5
+```
+
 ### Top: the most expensive repeated queries
 
 ```bash
@@ -758,7 +771,7 @@ gulliver snapshot | drift [--models DIR] [--save]
 gulliver diff --left SQL --right SQL --key k1,k2 [--right-connection NAME] [--columns a,b]
 gulliver translate SQL --to D [--from D] [--check] [-o PATH]
 gulliver incremental SQL [--time-column C] [--unique-key K] [--period 1d] [--lookback 1]
-gulliver check TARGET [--where W] [--unique K] [--not-null C] [--accepted C=a|b] [--range C=min:max] [--fresh C=24h] [--min-rows N] [--max-change PCT]
+gulliver check TARGET [--where W] [--unique K] [--not-null C] [--accepted C=a|b] [--range C=min:max] [--fresh C=24h] [--min-rows N] [--max-change PCT] [--samples 0-20]
 gulliver top [--source auto|receipts|pg_stat_statements|bigquery_jobs|snowflake_history|csv:FILE|jsonl:FILE]
              [--file PATH] [--days 7] [--limit 20] [--analyze 10] [--rank-by auto|cost|runtime|bytes|calls]
 gulliver review [--models DIR] [--base REF] [--head REF] | [--manifest-base FILE --manifest-head FILE]

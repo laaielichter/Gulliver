@@ -320,6 +320,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fresh", action="append", help="col=24h (repeatable)")
     p.add_argument("--min-rows", type=int)
     p.add_argument("--max-change", type=float, help="Max %% row-count change since the last check")
+    p.add_argument("--samples", type=int, choices=range(21), default=0,
+                   help="Up to N offending values per failed unique/accepted/range check (0-20; extra gated queries)")
 
     p = sub.add_parser("selftest", help="Check Gulliver itself: 'security' runs the bypass test set and the sandbox")
     p.add_argument("suite", choices=["security"])
@@ -504,7 +506,7 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
                 result = features.check(settings, args.target, connection=conn, where=args.where,
                                         unique=args.unique, not_null=args.not_null, accepted=args.accepted,
                                         ranges=args.ranges, fresh=args.fresh, min_rows=args.min_rows,
-                                        max_change_pct=args.max_change)
+                                        max_change_pct=args.max_change, samples=args.samples)
             return _emit(result, args.json)
         if args.command in ("spend", "audit"):
             from . import runaway

@@ -47,6 +47,9 @@ available; otherwise the CLI `gulliver <command> --json` returns the same JSON.
 | Lint a whole repo in CI | `gulliver lint models/ --format sarif` (CLI) | findings with file, line and column; `gulliver fix --check` lists proven rewrites |
 
 Partitioned tables need a `where` with a partition filter for `gulliver_check`, like any other query.
+For failed unique, accepted-values or range checks, optional `samples` (0-20, default 0; CLI `--samples`)
+adds separately budget-gated queries for offending values and counts. Values pass the result guard and are
+untrusted data. `samples_skipped` explains a block, approval requirement or error without losing check counts.
 
 ## When Gulliver blocks
 

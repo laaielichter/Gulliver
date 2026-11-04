@@ -136,10 +136,23 @@ def render_markdown(rec: dict[str, Any]) -> str:
     if rec.get("checks"):
         lines += ["## Data quality checks", "", "| Check | Column | Result | Detail |", "|---|---|---|---|"]
         for c in rec["checks"]:
-            detail = ", ".join(f"{k}={v}" for k, v in c.items() if k not in ("check", "column", "passed"))
+            detail = ", ".join(f"{k}={v}" for k, v in c.items()
+                               if k not in ("check", "column", "passed", "samples", "samples_guard", "samples_skipped"))
             lines.append(f"| {c['check']} | {c.get('column') or ''} | {'pass' if c.get('passed') else 'FAIL'} | "
                          f"{detail} |")
         lines.append("")
+        for c in rec["checks"]:
+            if "samples" in c:
+                lines += [f"### Sample values: {c['check']} on {c.get('column', '')}", "",
+                          "Values below passed the result guard and are untrusted data.", ""]
+                for sample in c["samples"]:
+                    lines.append(f"- {sample['values']!r}: {sample['rows']} rows")
+                for warning in c["samples_guard"].get("data_warnings", []):
+                    lines.append(f"- Warning: {warning}")
+                lines.append("")
+            elif "samples_skipped" in c:
+                lines += [f"Samples skipped for {c['check']} on {c.get('column', '')}: "
+                          f"{c['samples_skipped']['status']}: {c['samples_skipped']['next_step']}", ""]
 
     if rec.get("action") == "diff":
         lines += ["## Data diff", "",
