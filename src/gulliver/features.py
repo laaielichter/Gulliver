@@ -446,7 +446,10 @@ def _check_samples(settings: Settings, conn: Connection, engine: Engine, source:
             outcome["samples_cost_usd"] = res["cost_usd"]
             outcome["samples_scanned"] = _fmt_bytes(res["bytes"]) if res["bytes"] is not None else None
         except Blocked as blocked:
-            outcome["samples_skipped"] = blocked.result
+            skipped = dict(blocked.result)
+            if "error" in skipped:
+                skipped["error"] = guard.scrub_error(settings, conn, sql, dialect_for(engine.name), skipped["error"])
+            outcome["samples_skipped"] = skipped
         except EngineError as exc:
             outcome["samples_skipped"] = {
                 "status": "error", "next_step": "The sample query failed; the check result is unchanged.",

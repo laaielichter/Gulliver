@@ -169,6 +169,29 @@ def test_renamed_source_columns_are_guarded_before_saving(sample_settings):
     assert [entry["kind"] for entry in ledger] == ["check", "check_samples"]
 
 
+@pytest.mark.parametrize("phase", ["estimate", "execute"])
+def test_sample_provider_errors_are_guarded_before_saving(sample_settings, monkeypatch, phase):
+    conn = sample_settings.connection(None)
+    protected = replace(conn, params={**conn.params, "policy": {"columns": {"items.user_id": "hash"}}})
+    settings = replace(sample_settings, connections={conn.name: protected})
+    provider = getattr(DuckDBEngine, phase)
+    sensitive = "person@example.com"
+
+    def fail_sample(engine, sql, **kwargs):
+        if "GROUP BY" in sql:
+            raise EngineError(f"Provider rejected value '{sensitive}'")
+        return provider(engine, sql, **kwargs)
+
+    monkeypatch.setattr(DuckDBEngine, phase, fail_sample)
+    result = features.check(settings, "items", unique=["user_id"], samples=2)
+    check = outcome(result, "unique")
+    assert result["status"] == "fail" and check["failing_rows"] == 3
+    assert check["samples_skipped"]["status"] == "error"
+    assert sensitive not in json.dumps(result)
+    for receipt in settings.state_dir.glob("receipts/*.json"):
+        assert sensitive not in receipt.read_text()
+
+
 @pytest.mark.parametrize("cost,status", [(2, "block"), (0.75, "needs_approval")])
 def test_sample_budget_failure_keeps_check_result(sample_settings, monkeypatch, cost, status):
     settings = replace(sample_settings, budget=replace(sample_settings.budget, max_query_usd=1, approval_over_usd=0.5))
