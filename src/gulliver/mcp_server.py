@@ -16,6 +16,7 @@ from pydantic import Field
 from . import __version__, core
 from . import mcp_native as native
 from .config import ConfigError, load_settings
+from .lint import RULES
 
 try:  # mcp >= 2
     from mcp.server.mcpserver import MCPServer as _Server
@@ -138,9 +139,11 @@ def build_server(toolset: str | None = None) -> Any:
             return _guard(inspect_sensitive, connection=connection, table=table, limit=limit, scan_rows=scan_rows)
         return _guard(core.inspect, connection=connection, table=table, limit=limit)
 
+    _rule_range = f"{sorted(RULES)[0]}-{sorted(RULES)[-1]}" if RULES else "GV001"
+
     @server.tool(name="gulliver_lint", annotations=READ_ONLY,
                  description="Static scale lint, no database needed: report SQL patterns that are fine on small data "
-                             "but expensive or wrong on big data (rules GV001-GV012: SELECT *, missing partition "
+                             f"but expensive or wrong on big data (rules {_rule_range}: SELECT *, missing partition "
                              "filter, cross joins, functions on partition columns, ...). Each finding has a "
                              "severity and a suggested fix as text; nothing is rewritten. Use it for a quick check "
                              "while writing SQL; use gulliver_fix to get the rewritten SQL, gulliver_preflight for "
