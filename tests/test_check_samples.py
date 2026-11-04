@@ -51,6 +51,18 @@ def test_samples_values_counts_and_filter(sample_settings):
     assert outcome(filtered, "unique")["samples"] == [{"values": {"user_id": 2}, "rows": 2}]
 
 
+
+@pytest.mark.parametrize("where", ["user_id = 2 -- selected duplicates", "user_id = 2 /* selected duplicates */"])
+def test_sample_filter_comments_preserve_all_check_predicates(sample_settings, where):
+    result = features.check(sample_settings, "items", where=where, unique=["user_id"],
+                            accepted=["kind=view"], ranges=["amount=0:100"], samples=1)
+    assert result["status"] == "fail" and result["failed"] == 3
+    assert outcome(result, "unique")["failing_rows"] == 1
+    assert outcome(result, "unique")["samples"] == [{"values": {"user_id": 2}, "rows": 2}]
+    assert outcome(result, "accepted_values")["samples"] == [{"values": {"kind": "buy"}, "rows": 2}]
+    assert outcome(result, "range")["samples"] == [{"values": {"amount": 200}, "rows": 2}]
+
+
 def test_composite_samples_keep_null_keys(sample_settings):
     result = features.check(sample_settings, "items", unique=["user_id,region"], samples=20)
     samples = outcome(result, "unique")["samples"]

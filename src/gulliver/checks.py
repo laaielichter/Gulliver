@@ -130,7 +130,7 @@ def sample_sql(engine: Engine, source: str, spec: CheckSpec, outcome: dict[str, 
     q = engine.quote
     kind = outcome["check"]
     column = outcome.get("column")
-    conditions = [f"({where})"] if where else []
+    conditions = [f"({where}\n)"] if where else []
     having = ""
     if kind == "unique":
         columns = next(key for key in spec.unique if ",".join(key) == column)
