@@ -4,8 +4,8 @@ import re
 
 from mcp import Client
 
-from gulliver.mcp_server import build_server
 from gulliver.lint import RULES
+from gulliver.mcp_server import build_server
 
 WRITE_WORDS = re.compile(r"(?<!never )(?<!not )\b(saves?|writes?|replaces?|deletes?|drops?|stores?)\b",
                          re.IGNORECASE)
