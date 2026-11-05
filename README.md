@@ -397,6 +397,14 @@ Each rung measures runtime, output rows and (where the engine reports it) bytes.
 Runtime first subtracts the fixed per-query overhead (measured with `SELECT 1`). Confidence is `high`, `medium`
 or `low`, with a range of x0.7-1.5, x0.5-2 or x0.25-4. After a real run, the receipt shows predicted vs actual.
 
+Use `gulliver calibration --days 30 -c NAME` to see how often the recorded ranges covered real rows,
+runtime and cost at each confidence level. Omit `-c` to include every connection. The window includes
+today in UTC. This reads receipts without running SQL. It uses the linked rehearsal for older runs and
+counts runs with no usable range separately. Local engines have no cost data. The median and geometric
+mean use actual/predicted, and the worst ratio is the one farthest from 1 on a multiplicative scale.
+A zero prediction counts toward range coverage when it has bounds, but it has no ratio.
+Use `--json` or read the default report at `gulliver://calibration` in MCP.
+
 By default only the **largest** table is sampled and the others stay complete, which keeps key joins honest.
 When the query reads that table more than once (a self-join, an `IN (SELECT ...)` on the same table, a CTE used
 twice), only the first occurrence is sampled and the others are read in full on every rung. Two samples of one

@@ -373,23 +373,30 @@ def test_rehearse_without_a_client_still_works(demo_db, state, monkeypatch):
 
 
 # -- resources and prompts -------------------------------------------------------------------------------
-def test_resources_list_and_read(demo_db, state, monkeypatch):
+def test_resources_list_and_read(demo_db, state, monkeypatch, capsys):
     monkeypatch.setenv("GULLIVER_DSN", demo_db)
 
     async def go():
         async with Client(build_server()) as client:
             listed = {str(r.uri) for r in (await client.list_resources()).resources}
             templates = {t.uri_template for t in (await client.list_resource_templates()).resource_templates}
-            await client.call_tool("gulliver_preflight", {"sql": GOOD})
+            await client.call_tool("gulliver_rehearse", {"sql": GOOD})
+            await client.call_tool("gulliver_run", {"sql": GOOD})
             read = {}
-            for uri in ("gulliver://status", "gulliver://rules", "gulliver://connections/default/tables",
+            for uri in ("gulliver://status", "gulliver://rules", "gulliver://calibration", "gulliver://connections/default/tables",
                         "gulliver://connections/default/tables/events", "gulliver://receipts/latest",
                         "gulliver://connections/nope/tables"):
                 read[uri] = (await client.read_resource(uri)).contents[0].text
             return listed, templates, read
 
     listed, templates, read = asyncio.run(go())
-    assert listed == {"gulliver://status", "gulliver://rules"}
+    assert listed == {"gulliver://status", "gulliver://rules", "gulliver://calibration"}
+    from gulliver.cli import main
+
+    assert main(["calibration", "--json"]) == 0
+    calibration_data = json.loads(read["gulliver://calibration"])
+    assert calibration_data == json.loads(capsys.readouterr().out)
+    assert (calibration_data["runs"], calibration_data["no_range"]) == (1, 0)
     assert templates == {"gulliver://connections/{connection}/tables",
                          "gulliver://connections/{connection}/tables/{table}", "gulliver://receipts/{receipt_id}"}
     assert json.loads(read["gulliver://status"])["default_connection"] == "default"

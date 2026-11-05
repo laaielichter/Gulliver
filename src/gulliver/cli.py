@@ -332,6 +332,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--days", type=int, default=7, help="How many days back, today included (default 7)")
     p.add_argument("--format", choices=["markdown", "csv"], default="markdown")
 
+    p = sub.add_parser("calibration", help="Compare rehearsal prediction ranges with real runs")
+    p.add_argument("--days", type=int, default=30, help="How many days back, today included (default 30)")
+
     p = sub.add_parser("audit", help="Check the hash chain over the ledger, receipts and approvals")
     p.add_argument("action", choices=["verify"])
     p.add_argument("--head", help="A head hash printed by an earlier verify: prove nothing up to it changed")
@@ -508,6 +511,14 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
                                         ranges=args.ranges, fresh=args.fresh, min_rows=args.min_rows,
                                         max_change_pct=args.max_change, samples=args.samples)
             return _emit(result, args.json)
+        if args.command == "calibration":
+            from .calibration import calibration, render_calibration
+
+            result = calibration(settings, days=args.days, connection=conn)
+            if args.json:
+                return _emit(result, args.json)
+            print(render_calibration(result))
+            return 0
         if args.command in ("spend", "audit"):
             from . import runaway
 

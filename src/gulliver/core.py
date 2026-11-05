@@ -702,13 +702,19 @@ def _run(settings: Settings, sql: str, connection: str | None, max_rows: int | N
               "cost_usd": round(cost, 6) if cost is not None else None}
     comparison: dict[str, Any] = {}
     if rehearsal:
+        from .calibration import METRICS
+
         pred = rehearsal.get("prediction") or {}
-        for key, metric in (("runtime_s", "runtime_s"), ("rows", "output_rows"), ("cost_usd", "cost_usd")):
-            p = (pred.get(metric) or {}).get("value")
-            a = actual.get(key)
+        for key, metric in METRICS.items():
+            estimate = pred.get(metric) or {}
+            p, a = estimate.get("value"), actual.get(key)
             if p is not None and a is not None:
-                comparison[key] = {"predicted": p, "actual": a,
-                                   "ratio": round(a / p, 3) if p else None}
+                confidence = rehearsal.get("confidence") if key == "cost_usd" else estimate.get("confidence")
+                comparison[key] = {"predicted": p, "actual": a, "ratio": round(a / p, 3) if p else None,
+                                   "low": estimate.get("low"), "high": estimate.get("high"),
+                                   "confidence": confidence}
+    if comparison:
+        pre["predicted_vs_actual"] = comparison
     # the result guard masks, flags and trims the preview before the agent or the receipt sees it
     guarded = guard.guard_preview(settings, conn, res.columns, res.preview, pre)
     result = finish("warn" if guarded.get("data_warnings") else "ok",
@@ -716,9 +722,6 @@ def _run(settings: Settings, sql: str, connection: str | None, max_rows: int | N
                                                  "proof."),
                     actual=actual, truncated=(res.truncated or len(guarded["preview"]) < len(res.preview)
                                               or bool(guarded.get("truncated_by"))), **guarded)
-    if comparison:
-        result["predicted_vs_actual"] = comparison
-        store.save_receipt(result)
     if res.notes:
         result["notes"] = (result.get("notes") or []) + res.notes
     return result

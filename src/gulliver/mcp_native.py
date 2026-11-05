@@ -545,6 +545,14 @@ def register_resources(server: Any, guard: Any) -> None:
     def status_resource() -> str:
         return _json(guard(core.status))
 
+    @server.resource("gulliver://calibration", name="calibration", title="Rehearsal calibration",
+                     mime_type="application/json",
+                     description="Observed rehearsal prediction coverage over the last 30 days.")
+    def calibration_resource() -> str:
+        from .calibration import calibration
+
+        return _json(guard(calibration))
+
     @server.resource("gulliver://rules", name="rules", title="Gulliver rules", mime_type="text/markdown",
                      description="The safe-query loop, status values, hard rules, lint rules and this server's budget.")
     def rules_resource() -> str:

@@ -32,7 +32,8 @@ real table (DuckDB, BigQuery, Snowflake or Postgres), especially when you do not
 | (human) | `gulliver selftest security --json` | check the read-only gate itself: the bypass test set and the DuckDB sandbox (`fail` if a check fails) |
 
 MCP resources and prompts, for clients that support them: `gulliver://rules` (the loop, status values and this
-server's budget), `gulliver://status`, `gulliver://connections/{c}/tables[/{t}]`, `gulliver://receipts/{id}`;
+server's budget), `gulliver://status`, `gulliver://connections/{c}/tables[/{t}]`, `gulliver://receipts/{id}`,
+`gulliver://calibration` (observed rehearsal range coverage, same as `gulliver calibration --json`);
 prompts `safe-query-loop`, `refactor-and-prove`, `make-incremental`. A human can start the server with
 `gulliver-mcp --toolset core` (or `pipeline`) to load fewer tools.
 

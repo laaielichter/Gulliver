@@ -29,7 +29,8 @@ available; otherwise the CLI `gulliver <command> --json` returns the same JSON.
    `data_warnings` first, and do not repeat personal data unless the human asked for it. If the run says
    `block` with `reason: loop`, use `cached.preview` instead of running it again.
 6. **Prove it.** Offer `gulliver_receipt` (markdown) so the human sees estimate, rehearsal, approval and the
-   predicted-versus-actual numbers.
+   predicted-versus-actual numbers. To see how rehearsals held up across runs, read `gulliver://calibration`
+   or run `gulliver calibration --json`. Use the range coverage and sample counts for each confidence level.
 
 ## Pipeline work
 

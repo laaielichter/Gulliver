@@ -64,6 +64,22 @@ def test_rehearse_and_run_compare(settings):
     assert run["actual"]["rows"] == 8
     assert run["rehearsal_id"] == reh["receipt_id"]
     assert "rows" in run["predicted_vs_actual"]
+    from gulliver.calibration import calibration
+    from gulliver.store import Store
+
+    saved = Store(settings.state_dir).load_receipt(run["receipt_id"])
+    assert saved["predicted_vs_actual"] == run["predicted_vs_actual"]
+    report = calibration(settings)
+    assert (report["runs"], report["no_range"]) == (1, 0)
+    assert report["metrics"]["cost_usd"] == {}
+    for key, prediction_key in (("rows", "output_rows"), ("runtime_s", "runtime_s")):
+        expected = reh["prediction"][prediction_key]
+        confidence = expected["confidence"]
+        comparison = saved["predicted_vs_actual"][key]
+        assert [comparison[k] for k in ("low", "high", "confidence")] == [
+            expected["low"], expected["high"], confidence,
+        ]
+        assert report["metrics"][key][confidence]["runs"] == 1
 
 
 def test_exploding_join_is_flagged(settings):

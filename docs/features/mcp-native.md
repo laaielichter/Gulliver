@@ -101,6 +101,7 @@ Read-only context a client can attach without a tool call (metadata only, no tab
 | URI | content |
 |---|---|
 | `gulliver://status` | connections, budget, money spent today (JSON, same as `gulliver_status`) |
+| `gulliver://calibration` | observed rehearsal range coverage by metric and confidence (JSON, same as `gulliver calibration --json`) |
 | `gulliver://rules` | the loop, status values, hard rules, lint rules and this server's budget (markdown) |
 | `gulliver://connections/{connection}/tables` | the biggest tables: rows, bytes, partitions (JSON) |
 | `gulliver://connections/{connection}/tables/{table}` | one table's columns and partitioning (JSON) |
