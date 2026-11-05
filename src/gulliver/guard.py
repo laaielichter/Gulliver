@@ -149,6 +149,9 @@ API_KEY_RE = re.compile(
     r"|AIza[0-9A-Za-z_-]{35}"
     r"|(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}"
     r"|glpat-[A-Za-z0-9_-]{20,}"
+    r"|npm_[A-Za-z0-9]{36}"
+    r"|pypi-[A-Za-z0-9_-]{50,}"
+    r"|hf_[A-Za-z0-9]{34}"
     r")(?![A-Za-z0-9])")
 PRIVATE_KEY_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)")
 SECRET_SHAPES = (("private_key", PRIVATE_KEY_RE), ("jwt", JWT_RE), ("api_key", API_KEY_RE))

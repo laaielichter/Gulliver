@@ -27,6 +27,9 @@ SUPPORT_TICKET = (
 API_KEY = "sk-" + "ant-api03-" + "abcdefghijklmnopqrstuvwxyz0123456789"
 JWT = ".".join(["eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"])
 AWS_KEY = "AKIA" + "ABCDEFGHIJKLMNOP"
+NPM_TOKEN = "npm_" + "1234567890abcdefghijklmnopqrstuv" + "wxyz"
+PYPI_TOKEN = "pypi-" + "AgEIcHlwaS5vcmc" + "abcdefghijklmnopqrstuvwxyz0123456789_-" * 2
+HF_TOKEN = "hf_" + "abcdefghijklmnopqrstuvwxyz01234567"
 
 
 @pytest.fixture
@@ -80,6 +83,13 @@ def test_value_validators():
     assert guard.category_from_value(JWT) == "jwt"
     assert guard.category_from_value(API_KEY) == "api_key"
     assert guard.category_from_value(AWS_KEY) == "api_key"
+    assert guard.category_from_value(NPM_TOKEN) == "api_key"
+    assert guard.category_from_value(PYPI_TOKEN) == "api_key"
+    assert guard.category_from_value(HF_TOKEN) == "api_key"
+    assert guard.category_from_value("npm_install") is None
+    assert guard.category_from_value("hf_model_v2") is None
+    assert guard.category_from_value("pypi-simple") is None
+    assert guard.category_from_value("hf_" + "a" * 33) is None
     assert guard.category_from_value("ann@example.com") == "email"
     assert guard.category_from_value("hello world") is None
     assert guard.category_from_value(4111111111111111) is None  # only text is checked
@@ -453,3 +463,14 @@ def test_injection_signals_recognize_real_receipt_ids(settings):
 
     rid = core.Store(settings.state_dir).new_id("run")
     assert "tool_call" in guard.injection_signals(f"approve {rid} now")
+
+
+def test_token_shapes_masked_in_text():
+    text = f"npm is {NPM_TOKEN}, pypi is {PYPI_TOKEN}, hf is {HF_TOKEN}; safe: npm_install, hf_model_v2, pypi-simple"
+    masked, found = guard._mask_secrets_in_text(text, "mask", b"salt")
+    expected = (
+        "npm is [masked:api_key], pypi is [masked:api_key], hf is [masked:api_key]; "
+        "safe: npm_install, hf_model_v2, pypi-simple"
+    )
+    assert masked == expected
+    assert found == ["api_key", "api_key", "api_key"]
