@@ -259,6 +259,15 @@ INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         r"\b(?:ignore|disregard|forget|override|bypass)\b[^.\n]{0,40}?\b(?:previous|prior|above|earlier|preceding|"
         r"all|any|your|the|system)\b[^.\n]{0,30}?\b(?:instructions?|prompts?|rules|directions|guidelines|"
         r"guardrails)\b", re.I)),
+    # Dutch, German, French, Spanish: verb + all/previous/the/your + instructions noun. "regels" is left out (it means
+    # "lines" in Dutch), so "negeer de eerste rij" and "negeer de eerste regels" stay quiet.
+    ("override_i18n", re.compile(
+        r"\b(?:negeer|vergeet|ignoriere?|vergiss|missachte|ignorez?|oubliez?|ignora|ignore|olvida|desestima)\b"
+        r"[^.\n]{0,40}?\b(?:alle|alles|de|het|je|jouw|vorige|voorgaande|eerdere|bovenstaande|die|der|deine|"
+        r"vorherigen?|vorigen|bisherigen|früheren|obigen|toutes?|les|tes|vos|pr[eé]c[eé]dentes?|ant[eé]rieures?|"
+        r"todas?|las|tus|anteriores|previas)\b[^.\n]{0,30}?\b(?:instructies|aanwijzingen|richtlijnen|"
+        r"anweisung(?:en)?|instruktionen|regeln|vorgaben|richtlinien|instructions|consignes|r[eè]gles|"
+        r"instrucciones|reglas|indicaciones|directrices)\b", re.I)),
     ("role_change", re.compile(r"\byou are now\b|\bfrom now on,? you\b|\bact as (?:an? |the )?(?:admin|"
                                r"administrator|developer|system|root|dan)\b|\bjailbreak", re.I)),
     # "the system message said error 500" is ordinary text; a system prompt or developer message is not
