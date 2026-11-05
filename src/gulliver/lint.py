@@ -34,7 +34,10 @@ RULES = {
     "GV014": "sensitive-column-in-output",
     "GV015": "fan-trap",
     "GV016": "order-by-random",
+    "GV017": "deep-offset",
 }
+
+DEEP_OFFSET_THRESHOLD = 10_000
 
 
 @dataclass
@@ -144,6 +147,20 @@ def lint(statement_tree: exp.Expression, dialect: str = "duckdb",
                 "even with LIMIT.",
                 "For random row sampling, consider TABLESAMPLE (Postgres, BigQuery, Snowflake) or USING SAMPLE "
                 "(DuckDB). Check the engine's sampling semantics before replacing the query.", order)
+
+    # GV017 deep-offset: an OFFSET with an integer literal of 10,000 or more
+    for offset in tree.find_all(exp.Offset):
+        expr = offset.expression
+        if isinstance(expr, exp.Literal) and expr.is_int:
+            try:
+                val = int(expr.this)
+            except (ValueError, TypeError):
+                continue
+            if val >= DEEP_OFFSET_THRESHOLD:
+                add("GV017", "warn",
+                    f"OFFSET {val:,} produces and discards {val:,} rows before returning results.",
+                    "Use keyset pagination (WHERE id > <last id seen> ORDER BY id LIMIT ...) instead of a deep OFFSET.",
+                    offset)
 
     # GV003 cartesian-join / GV008 non-equi-join
     for select in tree.find_all(exp.Select):

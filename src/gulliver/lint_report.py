@@ -69,6 +69,8 @@ RULE_DOCS: dict[str, tuple[str, str, str, str]] = {
                       "with LIMIT.",
               "For random row sampling, consider TABLESAMPLE (Postgres, BigQuery, Snowflake) or USING SAMPLE "
               "(DuckDB); check the engine's sampling semantics.", "none"),
+    "GV017": ("warn", "A high OFFSET produces and discards many rows, and every next page costs more.",
+              "Use keyset pagination (WHERE id > <last id seen> ORDER BY id LIMIT N) instead of OFFSET.", "none"),
     "GV900": ("warn", "Gulliver could not parse a statement (dialect, or dbt Jinja it cannot render), so it was not "
                       "checked. Only in file lint.", "Set the dialect, or simplify the Jinja.", "none"),
     "GV901": ("warn", "A `gulliver: ignore` comment that ignores nothing: always for an unreadable rule list "

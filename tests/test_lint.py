@@ -135,3 +135,41 @@ def test_leading_wildcard_like_is_info():
     assert rules("select a from t where b like '%x'")["GV013"] == "info"
     assert rules("select a from t where b ilike '%x%' limit 5")["GV013"] == "info"
     assert "GV013" not in rules("select a from t where b like 'x%'")
+
+
+@pytest.mark.parametrize("dialect", ["duckdb", "postgres", "bigquery"])
+def test_deep_offset_flagged_across_dialects(dialect):
+    stmt = classify("select id from events order by id limit 50 offset 200000", dialect)
+    findings = [f for f in lint(stmt.select, dialect) if f.rule == "GV017"]
+    assert len(findings) == 1
+    assert findings[0].severity == "warn"
+    assert findings[0].name == "deep-offset"
+    assert "keyset pagination" in findings[0].fix.lower()
+    assert findings[0].node is not None
+
+
+def test_deep_offset_fetch_next_postgres():
+    stmt = classify("select id from events offset 200000 rows fetch next 50 rows only", "postgres")
+    findings = [f for f in lint(stmt.select, "postgres") if f.rule == "GV017"]
+    assert len(findings) == 1
+    assert findings[0].severity == "warn"
+    assert "keyset pagination" in findings[0].fix.lower()
+
+
+def test_deep_offset_in_subquery():
+    stmt = classify("select * from (select id from events offset 200000)", "duckdb")
+    findings = [f for f in lint(stmt.select, "duckdb") if f.rule == "GV017"]
+    assert len(findings) == 1
+    assert findings[0].severity == "warn"
+
+
+@pytest.mark.parametrize("sql", [
+    "select id from events offset 100",
+    "select id from events offset 9999",
+    "select id from events offset ?",
+    "select id from events limit 50",
+])
+def test_deep_offset_negatives(sql):
+    stmt = classify(sql, "duckdb")
+    findings = [f for f in lint(stmt.select, "duckdb") if f.rule == "GV017"]
+    assert len(findings) == 0
