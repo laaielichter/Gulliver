@@ -82,7 +82,7 @@ def build_sql(engine: Engine, source: str, spec: CheckSpec, where: str | None = 
             col = q(key[0])
             add(f"COUNT({col}) - COUNT(DISTINCT {col})", "unique", key[0])
         else:
-            text = " || '|' || ".join(engine.text(q(c)) for c in key)
+            text = " || '|' || ".join(engine.text_part(q(c)) for c in key)
             add(f"COUNT(*) - COUNT(DISTINCT {text})", "unique", ",".join(key))
     for col in spec.not_null:
         add(f"SUM(CASE WHEN {q(col)} IS NULL THEN 1 ELSE 0 END)", "not_null", col)

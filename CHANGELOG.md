@@ -14,6 +14,7 @@
 - @ShahadatTest for `gulliver fix -o/--output` (#10) and reading and writing SQL files as UTF-8 (#15).
 
 ### Fixed
+- Composite uniqueness checks and data diffs escape `~` and `|` in each text part before joining, so embedded separators no longer make distinct keys or rows compare equal (#36).
 - GV001 no longer warns on `SELECT *` inside an `EXISTS` or `NOT EXISTS` subquery: it is a semi-join, so no engine reads those columns. A `SELECT *` elsewhere in the same query is still reported (#50).
 - Budget limits that are `nan`, infinite or negative are refused at load time with an error that names the key, from `gulliver.toml` and from `GULLIVER_*` variables. Before, `max_query_usd = nan` silently switched the hard stop off (#40).
 - `gulliver_drift` is no longer annotated read-only. It saves a local snapshot file (on the first call, and with `save=true`), so it now reports `readOnlyHint: false`, `destructiveHint: false`. It still only reads the database. Reported by Glama's tool scoring.

@@ -156,6 +156,10 @@ class Engine(ABC):
         """Expression as text, NULL shown as a fixed marker (so NULL and '' differ)."""
         return f"COALESCE(CAST({expr} AS {self.text_type}), '<gv-null>')"
 
+    def text_part(self, expr: str) -> str:
+        """Escape a text part before joining keys or rows with '|'."""
+        return f"REPLACE(REPLACE({self.text(expr)}, '~', '~~'), '|', '~p')"
+
     def md5_int(self, text_expr: str) -> str:
         """First 7 hex digits of MD5(text) as an integer (0..268435455). Same value on every engine."""
         return f"CAST(('0x' || SUBSTR(MD5({text_expr}), 1, 7)) AS BIGINT)"

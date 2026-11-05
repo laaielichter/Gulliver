@@ -19,7 +19,7 @@ DEFAULT_BUCKETS = 256
 
 
 def row_text(engine: Engine, columns: list[str]) -> str:
-    parts = [engine.text(engine.quote(c)) for c in columns]
+    parts = [engine.text_part(engine.quote(c)) for c in columns]
     return " || '|' || ".join(parts) if parts else "''"
 
 

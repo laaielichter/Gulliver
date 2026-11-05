@@ -125,6 +125,43 @@ def test_translate_check_on_connection(settings):
 
 
 # -- diff ----------------------------------------------------------------------------------------------
+@pytest.fixture(params=[
+    (("x|y", "z"), ("x", "y|z"), "x~py|z", "x|y~pz"),
+    (("x~p", "z"), ("x|", "z"), "x~~p|z", "x~p|z"),
+    (("x~|y", "z"), ("x~", "y|z"), "x~~~py|z", "x~~|y~pz"),
+    (("", "|"), ("|", ""), "|~p", "~p|"),
+])
+def composite_values(tmp_path, state, request):
+    left, right, left_key, right_key = request.param
+    db = tmp_path / "composite.duckdb"
+    with duckdb.connect(str(db)) as con:
+        con.execute("CREATE TABLE left_items (id INTEGER, a VARCHAR, b VARCHAR)")
+        con.execute("CREATE TABLE right_items (id INTEGER, a VARCHAR, b VARCHAR)")
+        con.execute("INSERT INTO left_items VALUES (1, ?, ?)", left)
+        con.execute("INSERT INTO right_items VALUES (1, ?, ?)", right)
+    return load_settings(dsn=str(db)), left_key, right_key
+
+
+def test_diff_distinguishes_embedded_separators_in_values(composite_values):
+    settings, _, _ = composite_values
+    result = features.diff(settings, "left_items", "right_items", ["id"])
+    assert result["status"] == "warn", result
+    assert result["identical"] is False
+    assert result["differences"]["changed"] == {"count": 1, "sample": ["1"]}
+    assert result["details_complete"] is True
+
+
+def test_diff_distinguishes_embedded_separators_in_composite_keys(composite_values):
+    settings, left_key, right_key = composite_values
+    result = features.diff(settings, "left_items", "right_items", ["a", "b"], columns=["id"])
+    assert result["status"] == "warn", result
+    assert result["identical"] is False
+    details = result["differences"]
+    assert details["only_in_left"] == {"count": 1, "sample": [left_key]}
+    assert details["only_in_right"] == {"count": 1, "sample": [right_key]}
+    assert details["changed"]["count"] == details["duplicate_keys"]["count"] == 0
+
+
 def test_diff_identical(settings):
     r = features.diff(settings, "users", "select user_id, country, signup_date from users", ["user_id"])
     assert r["status"] == "ok" and r["identical"] is True
@@ -193,6 +230,24 @@ def test_parse_period():
 
 
 # -- checks -------------------------------------------------------------------------------------------------
+def test_composite_unique_distinguishes_embedded_separators(composite_values):
+    settings, _, _ = composite_values
+    query = "SELECT a, b FROM left_items UNION ALL SELECT a, b FROM right_items"
+    result = features.check(settings, query, unique=["a,b"], samples=2)
+    assert result["status"] == "ok", result
+    unique = next(c for c in result["checks"] if c["check"] == "unique")
+    assert unique["failing_rows"] == 0
+    assert "samples" not in unique
+
+    duplicate = features.check(settings, query + " UNION ALL SELECT a, b FROM left_items",
+                               unique=["a,b"], samples=2)
+    assert duplicate["status"] == "fail", duplicate
+    unique = next(c for c in duplicate["checks"] if c["check"] == "unique")
+    assert unique["failing_rows"] == 1
+    assert len(unique["samples"]) == 1
+    assert unique["samples"][0]["rows"] == 2
+
+
 def test_checks_pass_and_fail(settings):
     ok = features.check(settings, "events", unique=["event_id"], not_null=["user_id"],
                         accepted=["event_type=view|click|cart|buy"], ranges=["amount=0:100"], min_rows=1000)

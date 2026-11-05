@@ -463,6 +463,9 @@ hash, so it scales to billions of rows and costs about one scan per side. Only b
 every engine, so you can diff across engines; values are compared as text, so cast or round in your queries where
 engines format numbers or timestamps differently. Use it after a refactor, a migration or an incremental switch.
 
+Diff key samples join parts with `|`, escaping `~` as `~~` and embedded `|` as `~p`. Parts without these
+characters are unchanged. The same escaping keeps composite uniqueness checks from confusing distinct values.
+
 ### Translate: SQL between dialects
 
 ```bash
