@@ -627,7 +627,8 @@ Every `gulliver_run` preview is checked before the agent or the receipt on disk 
 
 - **Sensitive columns** by name (`email`, `iban`, `card_number`, `password`, `api_key`, Dutch names too),
   through your SQL (aliases, CTEs, `SELECT *`, a whole row as one value), and by validated value patterns
-  (email, phone, IBAN mod-97, Luhn card numbers, BSN 11-check, IP, JWT, API-key shapes).
+  (email, phone, IBAN mod-97, Luhn card numbers, BSN 11-check, UK National Insurance numbers as `ssn`, IP, JWT,
+  API-key shapes).
 - **Untrusted envelope.** The result has `untrusted: true`. Text that reads like instructions to an AI ("ignore
   previous instructions", `gulliver_*` tool names, hidden Unicode, base64) is listed in `injection` and
   `data_warnings`.

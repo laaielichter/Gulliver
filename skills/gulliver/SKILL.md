@@ -53,6 +53,9 @@ For failed unique, accepted-values or range checks, optional `samples` (0-20, de
 adds separately budget-gated queries for offending values and counts. Values pass the result guard and are
 untrusted data. `samples_skipped` explains a block, approval requirement or error without losing check counts.
 
+Value scans classify UK National Insurance number formats as `ssn`, so they follow the existing result policy
+even when the column name is neutral.
+
 ## When Gulliver blocks
 
 - `statement.code` GS001-GS004: the SQL calls a side-effect function, runs SQL from a string, or reads a file

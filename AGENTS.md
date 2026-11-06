@@ -52,6 +52,9 @@ Do not run the same query again and again. If `gulliver_run` returns `block` wit
 
 ## Pipeline work
 
+- Value scans identify UK National Insurance number formats as `ssn`, including in neutrally named columns.
+  These values follow the existing `ssn` result policy.
+
 - Lint warning GV016 flags `ORDER BY RANDOM()` / `RAND()`, even with LIMIT. For random row sampling,
   consider `TABLESAMPLE` or DuckDB's `USING SAMPLE`; check the engine's sampling semantics first.
 
