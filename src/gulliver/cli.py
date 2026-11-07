@@ -215,7 +215,9 @@ def build_parser() -> argparse.ArgumentParser:
                                                            "(partitions for GV004, column types for same-rows fixes)")
     p.add_argument("-o", "--output", metavar="PATH", help="Files mode: write the report to PATH (e.g. gulliver.sarif)")
 
-    sub.add_parser("rules", help="List the lint rules (id, name, default severity, autofix)")
+    p = sub.add_parser("rules", help="List the lint rules (id, name, default severity, autofix)")
+    p.add_argument("--format", choices=["text", "markdown", "json"], default="text",
+                   help="Output format (default text; markdown = README table; --json = json)")
 
     p = sub.add_parser("fix", help="Rewrite SQL to be cheaper, and say if the rows stay exactly the same")
     p.add_argument("sql", nargs="*", help="SQL text, '-' to read stdin, or .sql files and folders with --check/--write")

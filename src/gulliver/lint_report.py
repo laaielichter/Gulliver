@@ -107,6 +107,26 @@ def render_rules_text() -> str:
     return "\n".join(lines)
 
 
+# Optional richer Name / Severity cells for the README / --format markdown table.
+# Every rule in rules() still appears; missing keys fall back to name + default_severity.
+RULE_MARKDOWN: dict[str, tuple[str, str]] = {
+    "GV003": ("cartesian-join", "error (no condition) / warn (CROSS JOIN)"),
+    "GV014": ("sensitive-column-in-output",
+              "info (personal data, masked secret) / warn (unmasked secret)"),
+    "GV900": ("parse-error (file lint only)", "warn"),
+    "GV901": ("unused-ignore (an unreadable or unused `gulliver: ignore`)", "warn"),
+}
+
+
+def render_rules_markdown() -> str:
+    """Markdown table of every rule: `| Rule | Name | Severity |` (for README and --format markdown)."""
+    lines = ["| Rule | Name | Severity |", "|---|---|---|"]
+    for r in rules():
+        name, severity = RULE_MARKDOWN.get(r["rule"], (r["name"], r["default_severity"]))
+        lines.append(f"| {r['rule']} | {name} | {severity} |")
+    return "\n".join(lines)
+
+
 # -- per format ---------------------------------------------------------------------------------------------
 def _results(result: dict[str, Any]) -> list[FileResult]:
     return list(result.get("_results") or [])
@@ -448,5 +468,11 @@ def cli_fix(args: Any) -> int:
 
 
 def cli_rules(args: Any) -> int:
-    print(json.dumps(rules_result(), indent=2) if args.json else render_rules_text())
+    fmt = getattr(args, "format", None) or "text"
+    if args.json or fmt == "json":
+        print(json.dumps(rules_result(), indent=2))
+    elif fmt == "markdown":
+        print(render_rules_markdown())
+    else:
+        print(render_rules_text())
     return 0

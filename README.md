@@ -669,7 +669,7 @@ gulliver lint models/ --format sarif -o gulliver.sarif  # GitHub Code Scanning; 
 gulliver lint models/ --fail-on warn                    # exit 2 on warnings too (default: errors)
 gulliver fix --check models/ -c warehouse               # exit 2 when a same-rows rewrite exists
 gulliver fix --write models/ -c warehouse               # apply only same-rows rewrites, in place
-gulliver rules                                          # every rule with its severity and autofix
+gulliver rules [--format text|markdown|json]            # every rule with its severity and autofix
 ```
 
 Accept a pattern on purpose with `-- gulliver: ignore GV001 reason` (or `ignore-file`); a typo in the rule list
@@ -768,7 +768,7 @@ gulliver inspect [TABLE] [--sensitive] [--scan N]   biggest tables, one table's 
 gulliver lint SQL [--dialect D]       scale lint of one query
 gulliver lint PATH... [--format text|json|sarif|github|gitlab|junit] [--fail-on error|warn|info|never]
                       [--exclude GLOB] [--warn-unused-ignores] [--metadata] [-o PATH]   files and folders (CI)
-gulliver rules                        every lint rule: id, name, severity, autofix
+gulliver rules [--format text|markdown|json]   every lint rule: id, name, severity, autofix
 gulliver fix SQL [--dialect D] [--mode safe|all] [--limit N] [-o PATH]   rewrite SQL, say what changes
 gulliver fix SQL --verify [--cases 200] [--seed 0] [--timezone TZ]      test every rewrite on generated data
 gulliver fix --check | --write PATH...                                  same-rows rewrites in files (CI)

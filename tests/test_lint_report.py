@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import pytest
 
@@ -19,7 +20,7 @@ from gulliver.lint_files import (
     render_jinja,
     split_statements,
 )
-from gulliver.lint_report import render, rules
+from gulliver.lint_report import render, render_rules_markdown, rules
 
 
 def _write(path, text):
@@ -246,6 +247,25 @@ def test_rules_registry_covers_every_rule():
     assert set(RULE_DOCS) == set(RULES) | set(META_RULES)
 
 
+def _readme_lint_table() -> str:
+    text = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    marker = "## Scale lint rules\n\n"
+    idx = text.index(marker) + len(marker)
+    lines = text[idx:].splitlines()
+    i = 0
+    while i < len(lines) and not lines[i].startswith("|"):
+        i += 1
+    rows = []
+    while i < len(lines) and lines[i].startswith("|"):
+        rows.append(lines[i])
+        i += 1
+    return "\n".join(rows)
+
+
+def test_readme_lint_table_matches_generated():
+    assert _readme_lint_table() == render_rules_markdown()
+
+
 # -- CLI -------------------------------------------------------------------------------------------------
 def test_single_sql_lint_is_unchanged(state, capsys):
     sql = "select * from events e, users u"
@@ -270,6 +290,13 @@ def test_cli_files_formats_exit_codes_and_output(state, tmp_path, capsys):
     assert "Not found: missing_dir" in capsys.readouterr().out
     assert main(["rules", "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["rules"][0]["rule"] == "GV001"
+    assert main(["rules", "--format", "json"]) == 0
+    assert json.loads(capsys.readouterr().out)["rules"][0]["rule"] == "GV001"
+    assert main(["rules", "--format", "markdown"]) == 0
+    md = capsys.readouterr().out.strip()
+    assert md == render_rules_markdown()
+    assert md.startswith("| Rule | Name | Severity |")
+    assert "| GV001 | select-star | warn |" in md
 
 
 def test_cli_reads_lint_section_from_toml(state, tmp_path, capsys):
