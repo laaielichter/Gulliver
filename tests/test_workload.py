@@ -540,6 +540,18 @@ def test_cli_top_json_and_text(demo_db, state, workload_csv, capsys):
     assert main(["--dsn", demo_db, "top", "--source", "bigquery_jobs"]) == 1
 
 
+def test_cli_top_output_file(demo_db, state, workload_csv, tmp_path, capsys):
+    """`gulliver top -o PATH` writes the printed report as UTF-8 and confirms the path."""
+    assert main(["--dsn", demo_db, "top", "--source", f"csv:{workload_csv}", "--limit", "2"]) == 0
+    expected = capsys.readouterr().out
+    out = tmp_path / "top.md"
+    assert main(["--dsn", demo_db, "top", "--source", f"csv:{workload_csv}", "--limit", "2",
+                 "-o", str(out)]) == 0
+    assert capsys.readouterr().out.strip() == f"Wrote {out}"
+    assert out.read_text(encoding="utf-8") == expected
+    assert "ranked by cost" in expected and "next:" in expected
+
+
 def test_mcp_top_tool(demo_db, state, workload_csv, monkeypatch):
     import asyncio
 

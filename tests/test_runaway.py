@@ -390,6 +390,19 @@ def test_cli_agent_flag_and_spend(demo_db, state, capsys):
     assert capsys.readouterr().out.startswith("table,usd")
 
 
+def test_cli_spend_output_file(demo_db, state, tmp_path, capsys):
+    """`gulliver spend -o PATH` writes the printed report as UTF-8 and confirms the path."""
+    assert main(["--dsn", demo_db, "--agent", "out-bot", "run", "--json", Q]) == 0
+    capsys.readouterr()
+    assert main(["--dsn", demo_db, "spend", "--by", "agent", "--format", "csv"]) == 0
+    expected = capsys.readouterr().out
+    out = tmp_path / "spend.csv"
+    assert main(["--dsn", demo_db, "spend", "--by", "agent", "--format", "csv", "-o", str(out)]) == 0
+    assert capsys.readouterr().out.strip() == f"Wrote {out}"
+    assert out.read_text(encoding="utf-8") == expected
+    assert expected.startswith("agent,usd") and "out-bot" in expected
+
+
 # -- audit chain ------------------------------------------------------------------------------------------
 def _some_history(settings):
     core.preflight(settings, Q)
