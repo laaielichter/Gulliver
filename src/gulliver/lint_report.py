@@ -71,6 +71,9 @@ RULE_DOCS: dict[str, tuple[str, str, str, str]] = {
               "(DuckDB); check the engine's sampling semantics.", "none"),
     "GV017": ("warn", "A high OFFSET produces and discards many rows, and every next page costs more.",
               "Use keyset pagination (WHERE id > <last id seen> ORDER BY id LIMIT N) instead of OFFSET.", "none"),
+    "GV018": ("info", "A subquery counts every matching row only to compare the count with zero. EXISTS can stop "
+                      "at the first match, and Postgres does not turn one into the other.",
+              "Use EXISTS (SELECT 1 FROM ...), or NOT EXISTS for `= 0` and `< 1`.", "none"),
     "GV900": ("warn", "Gulliver could not parse a statement (dialect, or dbt Jinja it cannot render), so it was not "
                       "checked. Only in file lint.", "Set the dialect, or simplify the Jinja.", "none"),
     "GV901": ("warn", "A `gulliver: ignore` comment that ignores nothing: always for an unreadable rule list "

@@ -196,3 +196,68 @@ def test_deep_offset_negatives(sql):
     stmt = classify(sql, "duckdb")
     findings = [f for f in lint(stmt.select, "duckdb") if f.rule == "GV017"]
     assert len(findings) == 0
+
+
+COUNT_SUBQUERY = "(select count(*) from orders o where o.user_id = u.id)"
+
+
+@pytest.mark.parametrize("dialect", ["duckdb", "postgres"])
+@pytest.mark.parametrize("sql", [
+    f"select u.id from users u where {COUNT_SUBQUERY} > 0 limit 10",
+    f"select u.id from users u where {COUNT_SUBQUERY} >= 1 limit 10",
+    f"select u.id from users u where {COUNT_SUBQUERY} <> 0 limit 10",
+    f"select u.id from users u where 0 < {COUNT_SUBQUERY} limit 10",
+    "select u.id from users u where (select count(1) from orders o where o.user_id = u.id) > 0 limit 10",
+    f"select u.id from users u where {COUNT_SUBQUERY} = 0 limit 10",
+    f"select u.id from users u where {COUNT_SUBQUERY} < 1 limit 10",
+])
+def test_count_for_existence_flagged(sql, dialect):
+    stmt = classify(sql, dialect)
+    findings = [f for f in lint(stmt.select, dialect) if f.rule == "GV018"]
+    assert len(findings) == 1, (sql, dialect, findings)
+    assert findings[0].severity == "info"
+    assert findings[0].name == "count-for-existence"
+    assert findings[0].node is not None
+
+
+def test_count_for_existence_suggests_exists():
+    stmt = classify(f"select u.id from users u where {COUNT_SUBQUERY} > 0 limit 10", "duckdb")
+    finding, = [f for f in lint(stmt.select, "duckdb") if f.rule == "GV018"]
+    assert "EXISTS" in finding.fix
+    assert "NOT EXISTS" not in finding.fix
+
+
+def test_count_for_existence_suggests_not_exists():
+    stmt = classify(f"select u.id from users u where {COUNT_SUBQUERY} = 0 limit 10", "duckdb")
+    finding, = [f for f in lint(stmt.select, "duckdb") if f.rule == "GV018"]
+    assert "NOT EXISTS" in finding.fix
+
+
+def test_count_for_existence_in_case_when():
+    # GV010 may fire on the same subquery; that is fine.
+    sql = "select case when (select count(*) from orders o) > 0 then 1 else 0 end as n from users limit 10"
+    assert rules(sql)["GV018"] == "info"
+
+
+@pytest.mark.parametrize("sql", [
+    f"select u.id from users u where {COUNT_SUBQUERY} > 5 limit 10",
+    f"select u.id from users u where {COUNT_SUBQUERY} = 3 limit 10",
+    f"select u.id from users u where {COUNT_SUBQUERY} >= 2 limit 10",
+    "select u.id from users u where (select count(*) from orders o group by o.user_id) > 0 limit 10",
+    "select u.id from users u where (select count(o.id) from orders o) > 0 limit 10",
+    "select user_id from orders group by user_id having count(*) > 0",
+    "select count(*) from users",
+    "select u.id from users u where exists (select 1 from orders o where o.user_id = u.id) limit 10",
+])
+def test_count_for_existence_not_flagged(sql):
+    assert "GV018" not in rules(sql), sql
+
+
+def test_count_for_existence_is_listed_with_rule_metadata():
+    from gulliver.lint_report import rules as rule_docs
+
+    rule, = [r for r in rule_docs() if r["rule"] == "GV018"]
+    assert rule["name"] == "count-for-existence"
+    assert rule["default_severity"] == "info"
+    assert rule["autofix"] == "none"
+    assert "EXISTS" in rule["fix"]

@@ -35,6 +35,7 @@ RULES = {
     "GV015": "fan-trap",
     "GV016": "order-by-random",
     "GV017": "deep-offset",
+    "GV018": "count-for-existence",
 }
 
 DEEP_OFFSET_THRESHOLD = 10_000
@@ -95,6 +96,68 @@ def _join_condition(join: exp.Join) -> exp.Expression | None:
 
 def _aliases_in(expr: exp.Expression) -> set[str]:
     return {col.table.lower() for col in expr.find_all(exp.Column) if col.table}
+
+
+# reading `0 < (SELECT COUNT(*) ...)` as `(SELECT COUNT(*) ...) > 0`
+_MIRRORED = {exp.GT: exp.LT, exp.LT: exp.GT, exp.GTE: exp.LTE, exp.LTE: exp.GTE}
+
+
+def _count_only_subquery(node: exp.Expression) -> exp.Subquery | None:
+    """`(SELECT COUNT(*) ...)` or `(SELECT COUNT(1) ...)`, nothing else.
+
+    Only these can become EXISTS: a grouped count returns one row per group, and
+    COUNT(column) skips NULLs, so neither answers "does at least one row match?".
+    """
+    if not isinstance(node, exp.Subquery):
+        return None
+    select = node.this
+    if not isinstance(select, exp.Select):
+        return None
+    if select.args.get("group") or select.args.get("having") or select.args.get("distinct"):
+        return None
+    projections = list(select.expressions)
+    if len(projections) != 1 or not isinstance(projections[0], exp.Count):
+        return None
+    count = projections[0]
+    if count.args.get("distinct"):
+        return None
+    arg = count.this
+    if isinstance(arg, exp.Star):
+        return node
+    if isinstance(arg, exp.Literal) and arg.is_int and str(arg.this) == "1":
+        return node
+    return None
+
+
+def _count_for_existence(node: exp.Expression) -> str | None:
+    """`"exists"` / `"not exists"` when this comparison only asks whether a count is zero."""
+    left, right = node.this, node.expression
+    if _count_only_subquery(left) is not None:
+        other, mirrored = right, False
+    elif _count_only_subquery(right) is not None:
+        other, mirrored = left, True
+    else:
+        return None
+    if not isinstance(other, exp.Literal) or not other.is_int:
+        return None
+    try:
+        value = int(other.this)
+    except (TypeError, ValueError):
+        return None
+    op = type(node)
+    if mirrored:
+        op = _MIRRORED.get(op, op)
+    if op is exp.GT and value == 0:      # count > 0
+        return "exists"
+    if op is exp.GTE and value == 1:     # count >= 1
+        return "exists"
+    if op is exp.NEQ and value == 0:     # count <> 0
+        return "exists"
+    if op is exp.EQ and value == 0:      # count = 0
+        return "not exists"
+    if op is exp.LT and value == 1:      # count < 1
+        return "not exists"
+    return None
 
 
 def lint(statement_tree: exp.Expression, dialect: str = "duckdb",
@@ -168,6 +231,18 @@ def lint(statement_tree: exp.Expression, dialect: str = "duckdb",
                     f"OFFSET {val:,} produces and discards {val:,} rows before returning results.",
                     "Use keyset pagination (WHERE id > <last id seen> ORDER BY id LIMIT ...) instead of a deep OFFSET.",
                     offset)
+
+    # GV018 count-for-existence: COUNT(*) compared with zero only to ask "is there any row?"
+    for comparison in tree.find_all(exp.GT, exp.GTE, exp.NEQ, exp.EQ, exp.LT):
+        kind = _count_for_existence(comparison)
+        if kind == "exists":
+            add("GV018", "info",
+                "A subquery counts every matching row only to test that the count is not zero.",
+                "Use EXISTS (SELECT 1 FROM ...): it can stop at the first match.", comparison)
+        elif kind == "not exists":
+            add("GV018", "info",
+                "A subquery counts every matching row only to test that the count is zero.",
+                "Use NOT EXISTS (SELECT 1 FROM ...): it can stop at the first match.", comparison)
 
     # GV003 cartesian-join / GV008 non-equi-join
     for select in tree.find_all(exp.Select):

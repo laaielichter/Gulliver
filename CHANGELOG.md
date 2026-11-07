@@ -7,6 +7,7 @@
 - Lint rule GV016 `order-by-random`: warns on `ORDER BY RANDOM()` / `RAND()`, also with LIMIT, and points to `TABLESAMPLE` / `USING SAMPLE` for random sampling (#23).
 - Prompt-injection scan: new `override_i18n` signal for "ignore previous instructions" in Dutch, German, French and Spanish (#22).
 - Lint rule GV017 `deep-offset`: warns when an `OFFSET` is an integer literal of 10,000 or more and suggests keyset pagination (#30).
+- Lint rule GV018 `count-for-existence`: flags `(SELECT COUNT(*) ...)` compared with zero (`> 0`, `>= 1`, `<> 0`, `= 0`, `< 1` and the mirrored `0 < ...`, also with `COUNT(1)`) and suggests `EXISTS`, or `NOT EXISTS` for `= 0` and `< 1` (#31).
 - Result guard: npm (`npm_...`), PyPI (`pypi-...`) and Hugging Face (`hf_...`) tokens are tagged `api_key` and masked inside free text (#38).
 - `gulliver calibration [--days N] [-c NAME]` and the `gulliver://calibration` MCP resource show how often rehearsal ranges held up against real runs, per metric and confidence level. New run receipts store `low`, `high` and `confidence` in `predicted_vs_actual` (#47).
 
