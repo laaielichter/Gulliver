@@ -776,6 +776,7 @@ gulliver preflight SQL                estimate + lint + gate, no execution
 gulliver rehearse SQL [--fractions 0.01,0.03,0.1] [--sample largest|all] [--method auto|system|bernoulli]
 gulliver run SQL [--max-rows N] [--allow-write]
 gulliver receipt [ID|latest] [--format markdown|json] [-o PATH]
+gulliver receipt --list [--limit N] [--status STATUS] [--json]
 gulliver approve ID [--note TEXT]     (human only)
 gulliver demo [PATH]                  create a demo DuckDB database
 gulliver lineage --models DIR | --manifest FILE

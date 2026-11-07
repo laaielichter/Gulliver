@@ -745,6 +745,39 @@ def get_receipt(settings: Settings, receipt_id: str, fmt: str = "markdown") -> d
             "next_step": "Show this markdown to the human."}
 
 
+def list_receipts(settings: Settings, limit: int = 20, status: str | None = None) -> dict[str, Any]:
+    """Return a compact summary of recent receipts.
+
+    The full receipt stays in the store; list output is intentionally limited to
+    metadata and the beginning of the SQL so it is safe and useful for finding
+    a receipt ID without exposing stored preview rows.
+    """
+    if limit < 1:
+        return _error("--limit must be at least 1.", "Use a positive limit, for example --limit 20.")
+
+    receipts = _store(settings).receipts()
+    if status is not None:
+        receipts = [rec for rec in receipts if rec.get("status") == status]
+
+    summaries = []
+    for rec in receipts[:limit]:
+        sql = str(rec.get("sql") or "").strip().replace("\n", " ")
+        summaries.append({
+            "receipt_id": rec.get("receipt_id"),
+            "created_at": rec.get("created_at"),
+            "action": rec.get("action"),
+            "status": rec.get("status"),
+            "connection": rec.get("connection"),
+            "sql_preview": sql[:120],
+        })
+
+    return {
+        "status": "ok",
+        "receipts": summaries,
+        "next_step": "Use a receipt_id with `gulliver receipt` to inspect the full receipt.",
+    }
+
+
 def approve(settings: Settings, receipt_id: str, note: str = "") -> dict[str, Any]:
     store = _store(settings)
     try:

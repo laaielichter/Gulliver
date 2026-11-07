@@ -61,6 +61,35 @@ def test_cli_receipt_output_file(demo_db, state, tmp_path, capsys):
     assert json.loads(js.read_text(encoding="utf-8"))["receipt_id"].startswith("gv-")
 
 
+def test_cli_receipt_list_order_limit_and_status(demo_db, state, capsys):
+    assert main(["--dsn", demo_db, "preflight", "select count(*) from events"]) == 0
+    capsys.readouterr()
+    assert main(["--dsn", demo_db, "preflight", "select count(*) from users"]) == 0
+    capsys.readouterr()
+
+    assert main(["--dsn", demo_db, "receipt", "--list", "--limit", "1"]) == 0
+    lines = [line for line in capsys.readouterr().out.splitlines() if line and not line.startswith("next:")]
+    assert len(lines) == 1
+    assert "select count(*) from users" in lines[0].lower()
+
+    assert main(["--dsn", demo_db, "receipt", "--list", "--status", "ok"]) == 0
+    output = capsys.readouterr().out
+    assert "select count(*) from users" in output.lower()
+    assert "select count(*) from events" in output.lower()
+
+
+def test_cli_receipt_list_json_has_summary_only(demo_db, state, capsys):
+    assert main(["--dsn", demo_db, "preflight", "select count(*) from events"]) == 0
+    capsys.readouterr()
+    assert main(["--dsn", demo_db, "receipt", "--list", "--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "ok"
+    assert data["receipts"]
+    assert {"receipt_id", "created_at", "action", "status", "connection", "sql_preview"} <= set(data["receipts"][0])
+    assert "preview" not in data["receipts"][0]
+    assert "next_step" in data
+
+
 def test_cli_translate_output_file(tmp_path, capsys):
     out = tmp_path / "model.bq.sql"
     assert main(["translate", "--from", "duckdb", "--to", "bigquery", "-o", str(out), "--json",

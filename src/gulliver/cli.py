@@ -254,8 +254,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-write", action="store_true", help="Allow CREATE/INSERT ... SELECT "
                                                              "(the connection must allow it too)")
 
-    p = sub.add_parser("receipt", help="Show a receipt")
+    p = sub.add_parser("receipt", help="Show a receipt or list recent receipts")
     p.add_argument("receipt_id", nargs="?", default="latest")
+    p.add_argument("--list", action="store_true", help="List recent receipts instead of showing one")
+    p.add_argument("--limit", type=int, default=20, help="Maximum receipts to list (default: 20)")
+    p.add_argument("--status", help="Only list receipts with this status, e.g. needs_approval")
     p.add_argument("--format", choices=["markdown", "json"], default="markdown")
     p.add_argument("-o", "--output", metavar="PATH", help="Also write the receipt (in --format) to PATH")
 
@@ -548,11 +551,22 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
             result = core.run(settings, _read_sql(args), connection=conn, max_rows=args.max_rows,
                               allow_write=args.allow_write)
         elif args.command == "receipt":
-            result = core.get_receipt(settings, args.receipt_id, fmt=args.format)
-            if result.get("status") == "ok":
-                text = (result["markdown"] if args.format == "markdown"
-                        else json.dumps(result["receipt"], indent=2, default=str) + "\n")
-                _write_output(args, text)
+            if args.list:
+                if args.receipt_id != "latest":
+                    parser.error("receipt --list does not take a receipt ID")
+                result = core.list_receipts(settings, limit=args.limit, status=args.status)
+                if result.get("status") == "ok" and not args.json:
+                    for rec in result["receipts"]:
+                        print(f"{rec['receipt_id']}  {rec['created_at']}  {rec['action']}  "
+                              f"{rec['status']}  {rec['connection']}  {rec['sql_preview']}")
+                    print(f"\nnext: {result['next_step']}")
+                    return EXIT.get(str(result.get("status")), 1)
+            else:
+                result = core.get_receipt(settings, args.receipt_id, fmt=args.format)
+                if result.get("status") == "ok":
+                    text = (result["markdown"] if args.format == "markdown"
+                            else json.dumps(result["receipt"], indent=2, default=str) + "\n")
+                    _write_output(args, text)
         elif args.command == "approve":
             result = core.approve(settings, args.receipt_id, note=args.note)
         else:  # pragma: no cover - argparse guards this
