@@ -164,6 +164,9 @@ def render_markdown(rec: dict[str, Any]) -> str:
         for kind, data in (rec.get("differences") or {}).items():
             if data.get("count"):
                 lines.append(f"- {kind.replace('_', ' ')}: {data['count']} (e.g. {', '.join(data['sample'][:5])})")
+                if kind == "changed" and data.get("columns"):
+                    cols_str = ", ".join(f"{col} ({cnt})" for col, cnt in data["columns"].items())
+                    lines.append(f"  - Differing columns: {cols_str}")
         lines.append("")
 
     lines += [f"**Next step:** {rec.get('next_step', '')}", ""]

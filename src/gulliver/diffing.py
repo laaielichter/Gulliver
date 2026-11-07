@@ -44,8 +44,13 @@ def keys_sql(engine: Engine, query: str, key: list[str], columns: list[str], buc
              wanted: list[int], limit: int) -> str:
     key_text = row_text(engine, key)
     in_list = ", ".join(str(int(b)) for b in wanted) or "-1"
+    col_hashes = [
+        f"{engine.md5_int(engine.text(engine.quote(c)))} AS gv_c{i}"
+        for i, c in enumerate(columns)
+    ]
+    extra = (", " + ", ".join(col_hashes)) if col_hashes else ""
     return (
-        f"SELECT {key_text} AS gv_key, {engine.md5_int(row_text(engine, columns))} AS gv_h "
+        f"SELECT {key_text} AS gv_key, {engine.md5_int(row_text(engine, columns))} AS gv_h{extra} "
         f"FROM ({query}) AS gv_q WHERE MOD({engine.md5_int(key_text)}, {int(buckets)}) IN ({in_list}) "
         f"LIMIT {int(limit)}"
     )
@@ -84,21 +89,70 @@ def compare_buckets(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> 
     }
 
 
-def compare_keys(left: list[dict[str, Any]], right: list[dict[str, Any]], max_keys: int) -> dict[str, Any]:
+def compare_keys(left: list[dict[str, Any]], right: list[dict[str, Any]], max_keys: int,
+                 columns: list[str] | None = None) -> dict[str, Any]:
     lk: dict[str, list[int]] = {}
     rk: dict[str, list[int]] = {}
+    lk_rows: dict[str, list[dict[str, Any]]] = {}
+    rk_rows: dict[str, list[dict[str, Any]]] = {}
     for row in left:
-        lk.setdefault(str(row["gv_key"]), []).append(int(row["gv_h"]))
+        k = str(row["gv_key"])
+        lk.setdefault(k, []).append(int(row["gv_h"]))
+        lk_rows.setdefault(k, []).append(row)
     for row in right:
-        rk.setdefault(str(row["gv_key"]), []).append(int(row["gv_h"]))
+        k = str(row["gv_key"])
+        rk.setdefault(k, []).append(int(row["gv_h"]))
+        rk_rows.setdefault(k, []).append(row)
     only_left = sorted(set(lk) - set(rk))
     only_right = sorted(set(rk) - set(lk))
     changed = sorted(k for k in set(lk) & set(rk) if sorted(lk[k]) != sorted(rk[k]))
     duplicates = sorted(k for k in set(lk) | set(rk) if len(lk.get(k, [])) > 1 or len(rk.get(k, [])) > 1)
+
+    changed_sample = changed[:max_keys]
+    col_counts: dict[str, int] = {}
+    sample_columns: dict[str, list[str]] = {}
+    has_dup_in_changed = False
+    cols = columns or []
+
+    for k in changed:
+        is_dup = len(lk[k]) > 1 or len(rk[k]) > 1
+        if is_dup:
+            has_dup_in_changed = True
+            if k in changed_sample:
+                sample_columns[k] = []
+            continue
+        l_row = lk_rows[k][0]
+        r_row = rk_rows[k][0]
+        diff_for_key: list[str] = []
+        for i, col in enumerate(cols):
+            cf = f"gv_c{i}"
+            if cf in l_row and cf in r_row and int(l_row[cf]) != int(r_row[cf]):
+                col_counts[col] = col_counts.get(col, 0) + 1
+                diff_for_key.append(col)
+        if k in changed_sample:
+            sample_columns[k] = diff_for_key
+
+    sorted_cols = dict(sorted(
+        ((col, cnt) for col, cnt in col_counts.items() if cnt > 0),
+        key=lambda item: (-item[1], item[0])
+    ))
+
+    changed_dict: dict[str, Any] = {
+        "count": len(changed),
+        "sample": changed_sample,
+        "columns": sorted_cols,
+        "sample_columns": sample_columns,
+    }
+    if has_dup_in_changed:
+        changed_dict["note"] = (
+            "Keys with more than one row on a side were omitted from column counts "
+            "(see duplicate_keys)."
+        )
+
     return {
         "only_in_left": {"count": len(only_left), "sample": only_left[:max_keys]},
         "only_in_right": {"count": len(only_right), "sample": only_right[:max_keys]},
-        "changed": {"count": len(changed), "sample": changed[:max_keys]},
+        "changed": changed_dict,
         "duplicate_keys": {"count": len(duplicates), "sample": duplicates[:max_keys]},
     }
 

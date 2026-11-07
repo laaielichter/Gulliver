@@ -357,8 +357,9 @@ def _register_feature_tools(server: Any) -> None:
     @server.tool(name="gulliver_diff", annotations=RUNS_QUERIES,
                  description="Data diff: do two queries or tables return the same rows? Compares by key inside the "
                              "engine (hashed buckets, scales to billions of rows), then lists sample keys that are "
-                             "missing, extra or changed. Sides may be on different connections. Both queries are "
-                             "priced first; over budget it returns status block instead of running. Use it to prove "
+                             "missing, extra or changed and which columns differ. Sides may be on different "
+                             "connections. Both queries are priced first; over budget it returns status block "
+                             "instead of running. Use it to prove "
                              "a refactor or migration keeps the same rows; use gulliver_drift for schema changes, "
                              "gulliver_check for rules on one table.")
     def gulliver_diff(

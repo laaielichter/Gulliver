@@ -290,11 +290,32 @@ def diff(settings: Settings, left_sql: str, right_sql: str, key: list[str], conn
                     left, left_sql, key, compare_cols, modulus, chosen, row_budget + 1), "diff", preview_rows=row_budget + 1)
                 rk = _gated_run(settings, rconn.name, right, diffing.keys_sql(
                     right, right_sql, key, compare_cols, modulus, chosen, row_budget + 1), "diff", preview_rows=row_budget + 1)
-                details = diffing.compare_keys(lk["rows"], rk["rows"], max_keys)
+                details = diffing.compare_keys(lk["rows"], rk["rows"], max_keys, columns=compare_cols)
                 cost += (lk["cost_usd"] or 0) + (rk["cost_usd"] or 0)
+                notes = result.get("notes", [])
+                if not complete and details.get("changed", {}).get("count", 0) > 0:
+                    sample_note = "Column counts cover the sampled buckets only."
+                    if sample_note not in notes:
+                        notes.append(sample_note)
+                    if "note" in details["changed"]:
+                        details["changed"]["note"] += f" {sample_note}"
+                    else:
+                        details["changed"]["note"] = sample_note
+                if "note" in details.get("changed", {}) and details["changed"]["note"] not in notes:
+                    notes.append(details["changed"]["note"])
+                if notes:
+                    result["notes"] = notes
+
+                cols_diff = details.get("changed", {}).get("columns", {})
+                if cols_diff:
+                    col_parts = [f"{c} ({n} {'key' if n == 1 else 'keys'})" for c, n in list(cols_diff.items())[:5]]
+                    differ_prefix = f"Rows differ in: {', '.join(col_parts)}."
+                else:
+                    differ_prefix = "Rows differ."
+
                 result.update(status="warn", identical=False, differences=details, cost_usd=round(cost, 6),
                               details_complete=complete,
-                              next_step=("Rows differ. "
+                              next_step=(differ_prefix + " "
                                          + ("Counts above are complete." if complete else
                                             "Counts above cover a sample of the differing rows; left_rows and "
                                             "right_rows are the full totals.")

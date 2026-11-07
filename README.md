@@ -467,7 +467,7 @@ gulliver diff --left orders --right orders --key id -c postgres_prod --right-con
 
 Each side is reduced inside its engine to 256 buckets of (row count, sum of MD5 row hashes) keyed by the key's
 hash, so it scales to billions of rows and costs about one scan per side. Only buckets that differ are opened
-(with a finer second pass when they are big) to list keys that are missing, extra or changed. MD5 is the same on
+(with a finer second pass when they are big) to list keys that are missing, extra or changed and which columns differ. MD5 is the same on
 every engine, so you can diff across engines; values are compared as text, so cast or round in your queries where
 engines format numbers or timestamps differently. Use it after a refactor, a migration or an incremental switch.
 

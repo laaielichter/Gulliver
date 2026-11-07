@@ -37,7 +37,7 @@ available; otherwise the CLI `gulliver <command> --json` returns the same JSON.
 | Situation | Tool | Report |
 |---|---|---|
 | About to change, rename or drop a column or table | `gulliver_impact` (models folder or dbt manifest) | every affected model and column, deepest last |
-| Refactored a model, migrated it, or made it incremental | `gulliver_diff` old vs new, with the key | "identical" only when `identical` is true; else the sample keys |
+| Refactored a model, migrated it, or made it incremental | `gulliver_diff` old vs new, with the key | "identical" only when `identical` is true; else the sample keys and differing columns |
 | A model rebuilds all history every run | `gulliver_incremental` | strategy, generated SQL / dbt config, rows saved; then prove it with `gulliver_diff` |
 | Moving SQL to another engine | `gulliver_translate` (with a target connection to preflight it) | the SQL plus every warning |
 | Before trusting a table, or after a load | `gulliver_check` (unique, not null, accepted, range, fresh) | which checks failed; status `fail` means do not use the data as-is |
