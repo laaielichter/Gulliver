@@ -3,7 +3,7 @@
 Three protections on every preview that gulliver_run returns:
   sensitive data   columns that look like personal data or secrets, found by column name, by output-column
                    lineage back to the source table, and by validated value patterns (email, E.164 phone, IBAN
-                   with mod-97, cards with Luhn, BSN with the 11-check, IP, JWT and API-key shapes). A policy per
+                   with mod-97, cards with Luhn, BSN with the 11-check, UK NINO, IP, JWT and API-key shapes). A policy per
                    connection says what to do: allow | warn | mask | hash | last4 | deny.
   untrusted data   every preview is marked `untrusted: true`; text cells that read like instructions to an AI
                    (prompt injection) are listed in `data_warnings`, or replaced when the policy says `redact`.
@@ -138,6 +138,8 @@ def category_from_name(name: str) -> str | None:
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 PHONE_RE = re.compile(r"\+[1-9]\d{7,14}")
 IBAN_RE = re.compile(r"[A-Z]{2}\d{2}[A-Z0-9]{11,30}")
+# HMRC NIM39110: O is allowed as the first prefix letter, but not the second.
+NINO_RE = re.compile(r"(?!BG|GB|KN|NK|NT|TN|ZZ)[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z][0-9]{6}[A-D]")
 JWT_RE = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")
 API_KEY_RE = re.compile(
     r"(?<![A-Za-z0-9])(?:"
@@ -191,6 +193,12 @@ def bsn_valid(text: str) -> bool:
     return total % 11 == 0
 
 
+def nino_valid(text: str) -> bool:
+    """Whether text has a UK National Insurance number's format, not whether it has been issued."""
+    s = re.sub(r"\s+", "", text)
+    return s.isascii() and bool(NINO_RE.fullmatch(s.upper()))
+
+
 def phone_valid(text: str) -> bool:
     s = text.strip()
     if not s.startswith("+"):
@@ -228,6 +236,8 @@ def category_from_value(value: Any) -> str | None:
         return "card"
     if bsn_valid(s):
         return "bsn"
+    if nino_valid(s):
+        return "ssn"
     if phone_valid(s):
         return "phone"
     if ip_valid(s):
