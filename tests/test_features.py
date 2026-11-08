@@ -5,7 +5,7 @@ from __future__ import annotations
 import duckdb
 import pytest
 
-from gulliver import features, incremental
+from gulliver import checks, features, incremental
 from gulliver.cli import main
 from gulliver.config import load_settings
 from gulliver.lineage import render
@@ -332,6 +332,29 @@ def test_check_row_count_change(settings):
     assert r["status"] == "ok"  # different target, own history
     r2 = features.check(settings, "users", max_change_pct=10)
     assert r2["checks"][0]["previous_rows"] == 20_000
+
+
+def test_parse_spec_rejects_bad_range_bounds():
+    for bad, bound in (("amount=nan:", "nan"), ("amount=:inf", "inf"),
+                       ("amount=-inf:10", "-inf"), ("amount=abc:1", "abc")):
+        with pytest.raises(ValueError) as excinfo:
+            checks.parse_spec(ranges=[bad])
+        assert f"range for 'amount' needs numbers, got '{bound}'" in str(excinfo.value)
+
+    with pytest.raises(ValueError) as excinfo:
+        checks.parse_spec(ranges=["amount=100:1"])
+    assert str(excinfo.value) == "range for 'amount' has min 100 > max 1"
+
+
+def test_parse_spec_keeps_open_and_equal_ranges():
+    spec = checks.parse_spec(ranges=["amount=0:", "score=:10", "count=5:5"])
+    assert spec.ranges == {"amount": (0.0, None), "score": (None, 10.0), "count": (5.0, 5.0)}
+
+
+def test_check_range_error_happens_before_the_query(settings):
+    result = features.check(settings, "events", ranges=["amount=100:1"])
+    assert result["status"] == "error"
+    assert "range for 'amount' has min 100 > max 1" in result["error"]
 
 
 def test_check_cli_exit_code(demo_db, state):

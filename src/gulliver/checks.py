@@ -6,6 +6,7 @@ the same budget gate as every other query.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -29,6 +30,16 @@ class CheckSpec:
                     or self.min_rows is not None or self.max_change_pct is not None)
 
 
+def _range_bound(col: str, text: str) -> float:
+    try:
+        value = float(text)
+    except ValueError:
+        raise ValueError(f"range for '{col}' needs numbers, got '{text}'") from None
+    if not math.isfinite(value):
+        raise ValueError(f"range for '{col}' needs numbers, got '{text}'")
+    return value
+
+
 def parse_spec(unique: list[str] | None = None, not_null: list[str] | None = None,
                accepted: list[str] | None = None, ranges: list[str] | None = None,
                fresh: list[str] | None = None, min_rows: int | None = None,
@@ -46,11 +57,16 @@ def parse_spec(unique: list[str] | None = None, not_null: list[str] | None = Non
             raise ValueError(f"accepted needs col=a|b|c, got '{a}'")
         spec.accepted[col.strip()] = [v for v in values.split("|")]
     for r in ranges or []:
-        col, _, bounds = r.partition("=")
-        lo, _, hi = bounds.partition(":")
-        if not _:
+        col, sep, bounds = r.partition("=")
+        if not sep:
             raise ValueError(f"range needs col=min:max (either side may be empty), got '{r}'")
-        spec.ranges[col.strip()] = (float(lo) if lo.strip() else None, float(hi) if hi.strip() else None)
+        col = col.strip()
+        lo_text, _, hi_text = bounds.partition(":")
+        lo = _range_bound(col, lo_text.strip()) if lo_text.strip() else None
+        hi = _range_bound(col, hi_text.strip()) if hi_text.strip() else None
+        if lo is not None and hi is not None and lo > hi:
+            raise ValueError(f"range for '{col}' has min {lo:g} > max {hi:g}")
+        spec.ranges[col] = (lo, hi)
     for f in fresh or []:
         col, _, age = f.partition("=")
         parse_period(age)  # validate early
