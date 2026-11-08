@@ -295,8 +295,6 @@ def diff(settings: Settings, left_sql: str, right_sql: str, key: list[str], conn
                 notes = result.get("notes", [])
                 if not complete and details.get("changed", {}).get("count", 0) > 0:
                     sample_note = "Column counts cover the sampled buckets only."
-                    if sample_note not in notes:
-                        notes.append(sample_note)
                     if "note" in details["changed"]:
                         details["changed"]["note"] += f" {sample_note}"
                     else:

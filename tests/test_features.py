@@ -215,6 +215,14 @@ def test_diff_columns_filter(settings):
     r = features.diff(settings, "users", right, ["user_id"], columns=["user_id", "country"])
     assert r["identical"] is True
 
+    right_diff = ("select user_id, case when user_id = 7 then 'XX' else country end as country, "
+                  "date '1999-01-01' as signup_date from users")
+    r_diff = features.diff(settings, "users", right_diff, ["user_id"], columns=["user_id", "country"])
+    assert r_diff["identical"] is False
+    assert r_diff["differences"]["changed"]["columns"] == {"country": 1}
+    assert r_diff["differences"]["changed"]["sample_columns"] == {"7": ["country"]}
+    assert "signup_date" not in r_diff["columns_compared"]
+
 
 def test_diff_duplicate_keys_omitted_from_column_counts(tmp_path):
     db = tmp_path / "dup.duckdb"
