@@ -342,6 +342,8 @@ def _as_query(text: str) -> str:
 def incremental(settings: Settings | None, sql: str, connection: str | None = None, time_column: str | None = None,
                 unique_key: list[str] | None = None, period: str = "1d", lookback: int = 1,
                 estimate_savings: bool = True) -> dict[str, Any]:
+    if lookback < 0:
+        return _error("--lookback must be at least 0.", "Pass 0 or a positive number of lookback periods.")
     dialect = "duckdb"
     if settings is not None:
         try:

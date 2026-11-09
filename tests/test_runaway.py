@@ -835,7 +835,7 @@ def test_prune_cli(settings, capsys):
     code = main(["prune", "--older-than", "30d", "--dry-run"])
     assert code == 0
     out = capsys.readouterr().out
-    assert "[dry-run]" in out
+    assert "Would prune" in out
     assert "Freed:" in out
 
     # CLI JSON
@@ -848,3 +848,41 @@ def test_prune_cli(settings, capsys):
     # Bad argument
     with pytest.raises(SystemExit):
         main(["prune", "--older-than", "invalid_period"])
+
+
+
+def test_prune_refuses_negative_keep_last(settings, capsys):
+    from datetime import timedelta
+
+    _some_history(settings)
+    store = core.Store(settings.state_dir)
+    receipt_count = len(list(store.receipts_dir.glob("*.json")))
+    assert receipt_count > 0
+
+    r = runaway.prune(settings, older_than="30d", keep_last=-1)
+    assert r["status"] == "error"
+    assert "--keep-last must be at least 0." in r["error"]
+    assert "next_step" in r
+    assert len(list(store.receipts_dir.glob("*.json"))) == receipt_count
+
+    r_store = store.prune(older_than=timedelta(days=30), keep_last=-5)
+    assert r_store["status"] == "error"
+    assert "--keep-last must be at least 0." in r_store["error"]
+    assert len(list(store.receipts_dir.glob("*.json"))) == receipt_count
+
+    code = main(["prune", "--older-than", "30d", "--keep-last", "-1", "--json"])
+    assert code == 1
+    out = capsys.readouterr().out
+    data = json.loads(out)
+    assert data["status"] == "error"
+    assert "--keep-last must be at least 0." in data["error"]
+    assert len(list(store.receipts_dir.glob("*.json"))) == receipt_count
+
+    code = main(["prune", "--older-than", "30d", "--keep-last", "-1"])
+    assert code == 1
+    out = capsys.readouterr().out
+    assert "--keep-last must be at least 0." in out
+    assert len(list(store.receipts_dir.glob("*.json"))) == receipt_count
+
+    r0 = runaway.prune(settings, older_than="30d", keep_last=0, dry_run=True)
+    assert r0["status"] == "ok"

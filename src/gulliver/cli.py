@@ -554,7 +554,8 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
                 except ValueError as exc:
                     parser.error(f"--older-than: {exc}")
                 result = runaway.prune(settings, older_than=older_than_td,
-                                       keep_last=args.keep_last, dry_run=args.dry_run)
+                                       keep_last=args.keep_last, dry_run=args.dry_run,
+                                       reason=f"older than {args.older_than}")
                 if args.json or result.get("status") != "ok":
                     return _emit(result, args.json)
                 print(runaway.render_prune(result))

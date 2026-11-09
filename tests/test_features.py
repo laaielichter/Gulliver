@@ -374,3 +374,33 @@ def test_a_history_saved_under_the_old_none_key_is_still_read(settings):
 def test_check_cli_exit_code(demo_db, state):
     assert main(["--dsn", demo_db, "check", "events", "--unique", "user_id"]) == 4
     assert main(["--dsn", demo_db, "check", "events", "--unique", "event_id"]) == 0
+
+
+
+def test_incremental_refuses_negative_lookback(settings, demo_db, capsys):
+    import json
+
+    sql = "select date_trunc('day', ts) as d, count(*) from events group by 1"
+    r = features.incremental(settings, sql, time_column="ts", lookback=-1)
+    assert r["status"] == "error"
+    assert "--lookback must be at least 0." in r["error"]
+    assert "next_step" in r
+
+    r0 = features.incremental(settings, sql, time_column="ts", lookback=0, estimate_savings=False)
+    assert r0["status"] == "ok"
+    assert r0["lookback_periods"] == 0
+
+    code = main(["--dsn", demo_db, "incremental", sql, "--time-column", "ts", "--lookback", "-1", "--json"])
+    assert code == 1
+    out = capsys.readouterr().out
+    data = json.loads(out)
+    assert data["status"] == "error"
+    assert "--lookback must be at least 0." in data["error"]
+
+    code = main(["--dsn", demo_db, "incremental", sql, "--time-column", "ts", "--lookback", "-1"])
+    assert code == 1
+    out = capsys.readouterr().out
+    assert "--lookback must be at least 0." in out
+
+    code = main(["--dsn", demo_db, "incremental", sql, "--time-column", "ts", "--lookback", "0", "--json", "--no-savings"])
+    assert code == 0
