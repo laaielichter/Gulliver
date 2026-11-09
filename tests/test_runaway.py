@@ -403,6 +403,22 @@ def test_cli_spend_output_file(demo_db, state, tmp_path, capsys):
     assert expected.startswith("agent,usd") and "out-bot" in expected
 
 
+def test_spend_refuses_days_below_one(settings):
+    res = runaway.spend(settings, days=0)
+    assert res["status"] == "error"
+    assert res["error"] == "--days must be at least 1."
+    assert res["next_step"]
+    assert runaway.spend(settings, days=-3)["status"] == "error"
+
+
+def test_cli_spend_refuses_days_below_one(demo_db, state, capsys):
+    assert main(["--dsn", demo_db, "spend", "--days", "0", "--json"]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error" and "--days must be at least 1." in data["error"]
+    assert main(["--dsn", demo_db, "spend", "--days", "-3", "--json"]) == 1
+    assert "--days must be at least 1." in capsys.readouterr().out
+
+
 # -- audit chain ------------------------------------------------------------------------------------------
 def _some_history(settings):
     core.preflight(settings, Q)

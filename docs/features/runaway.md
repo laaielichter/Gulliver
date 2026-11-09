@@ -121,6 +121,7 @@ $ gulliver spend --by table --json
 `--by table` splits a query that reads several tables evenly between them, so the rows add up to the total.
 Lines written before this version have no agent and show as `(unknown)`. Current lines without a session or
 task (CLI calls without `GULLIVER_SESSION` / `GULLIVER_TASK`), and queries that read no table, show as `(none)`.
+`--days` below 1 is refused with the standard error result instead of reporting a window you did not ask for.
 
 ## Audit chain
 

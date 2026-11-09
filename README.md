@@ -406,7 +406,8 @@ today in UTC. This reads receipts without running SQL. It uses the linked rehear
 counts runs with no usable range separately. Local engines have no cost data. The median and geometric
 mean use actual/predicted, and the worst ratio is the one farthest from 1 on a multiplicative scale.
 A zero prediction counts toward range coverage when it has bounds, but it has no ratio.
-Use `--json` or read the default report at `gulliver://calibration` in MCP.
+Use `--json` or read the default report at `gulliver://calibration` in MCP. `--days` below 1 is refused
+with the standard error result instead of quietly shrinking the window to one day.
 
 By default only the **largest** table is sampled and the others stay complete, which keeps key joins honest.
 When the query reads that table more than once (a self-join, an `IN (SELECT ...)` on the same table, a CTE used

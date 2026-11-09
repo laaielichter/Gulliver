@@ -74,8 +74,12 @@ def _summary(observations: list[tuple[bool, float | None]]) -> dict[str, Any]:
 
 def calibration(settings: Settings, days: int = 30, connection: str | None = None) -> dict[str, Any]:
     """Summarize successful runs in the window, including the current UTC day."""
+    from .core import _error
+
+    if days < 1:
+        return _error("--days must be at least 1.", "Use a positive number of days, for example --days 30.")
     today = now_utc().date()
-    window = min(max(days, 1), today.toordinal())
+    window = min(days, today.toordinal())
     first = today - timedelta(days=window - 1)
     receipts = [receipt for receipt in Store(settings.state_dir).receipts() if isinstance(receipt, dict)]
     rehearsals = {receipt["receipt_id"]: receipt for receipt in receipts if receipt.get("action") == "rehearse"

@@ -312,7 +312,10 @@ def spend(settings: Settings, by: str = "agent", days: int = 7) -> dict[str, Any
     if by not in SPEND_BY:
         return {"status": "error", "error": f"by must be one of {', '.join(SPEND_BY)}",
                 "next_step": "Use --by agent, day or table."}
-    days = max(1, int(days))
+    if days < 1:
+        return {"status": "error", "error": "--days must be at least 1.",
+                "next_step": "Use a positive number of days, for example --days 7."}
+    days = int(days)
     first = now_utc().date() - timedelta(days=days - 1)
     groups: dict[str, dict[str, Any]] = {}
     total = {"usd": 0.0, "executions": 0, "bytes": 0}

@@ -671,6 +671,10 @@ def top(settings: Settings, source: str = "auto", connection: str | None = None,
         return _error(f"rank_by must be one of {', '.join(RANK_BY)}")
     if days <= 0 or days > 365:
         return _error("days must be between 1 and 365.")
+    if limit < 1:
+        return _error("--limit must be at least 1.", "Use a positive limit, for example --limit 20.")
+    if analyze < 0:
+        return _error("--analyze must be at least 0.", "Use 0 to list the top queries without analysis.")
     try:
         conn = settings.connection(connection)
         kind, file_path = _resolve_source(source.strip(), path, conn.engine)

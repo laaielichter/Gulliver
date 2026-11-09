@@ -40,7 +40,9 @@ it is estimated first, can be blocked or need a human approval, and its cost goe
    per day, share of the total and cost per month.
 3. **For the top groups** (`--analyze`, default 10): scale lint, the safe rewrite from `gulliver fix` (same rows
    only), and an estimate of the original and the rewrite (dry run / EXPLAIN, no data read). The saving per month
-   is `(1 - estimate after / estimate before) x observed cost per month`.
+   is `(1 - estimate after / estimate before) x observed cost per month`. `--analyze 0` lists the top groups
+   without analysing them; `--limit` below 1 and `--analyze` below 0 are refused instead of silently changing
+   the list.
 4. **Summary-table candidates** (`materialize`): aggregates that run at least 10 times a day and scan about the
    same bytes each time. Priced as runs per month x cost per run, minus one refresh a day.
 

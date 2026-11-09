@@ -52,6 +52,24 @@ def test_cli_calibration_reports_coverage_and_multiplicative_ratios(state, capsy
     assert "cost_usd: no data" in text
 
 
+def test_calibration_refuses_days_below_one(state):
+    from gulliver.calibration import calibration
+
+    for days in (0, -1):
+        res = calibration(load_settings(), days=days)
+        assert res["status"] == "error"
+        assert res["error"] == "--days must be at least 1."
+        assert res["next_step"]
+
+
+def test_cli_calibration_refuses_days_below_one(state, capsys):
+    assert main(["calibration", "--days", "0", "--json"]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error" and "--days must be at least 1." in data["error"]
+    assert main(["calibration", "--days", "-1", "--json"]) == 1
+    assert "--days must be at least 1." in capsys.readouterr().out
+
+
 def test_legacy_receipts_use_metric_confidence_and_overall_for_cost(state):
     from gulliver.calibration import calibration
 

@@ -122,6 +122,20 @@ def test_bad_inputs(settings, tmp_path):
     wrong = workload.top(settings, source="bigquery_jobs")
     assert wrong["status"] == "error" and "bigquery connection" in wrong["error"]
     assert workload.top(settings, days=0)["status"] == "error"
+    assert workload.top(settings, limit=0)["status"] == "error"
+    limited = workload.top(settings, limit=-1)
+    assert limited["status"] == "error" and limited["error"] == "--limit must be at least 1." and limited["next_step"]
+    analyzed = workload.top(settings, analyze=-1)
+    assert analyzed["status"] == "error" and analyzed["error"] == "--analyze must be at least 0."
+
+
+def test_cli_top_refuses_limit_and_analyze_below_range(demo_db, state, capsys):
+    assert main(["--dsn", demo_db, "top", "--limit", "0", "--json"]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error" and "--limit must be at least 1." in data["error"]
+    assert main(["--dsn", demo_db, "top", "--analyze", "-1", "--json"]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert "--analyze must be at least 0." in data["error"]
 
 
 def test_csv_keeps_newlines_in_quoted_sql_and_reads_a_bom(settings, tmp_path):
