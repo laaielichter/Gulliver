@@ -788,7 +788,7 @@ gulliver impact TABLE[.COLUMN] --models DIR | --manifest FILE
 gulliver snapshot | drift [--models DIR] [--save]
 gulliver diff --left SQL --right SQL --key k1,k2 [--right-connection NAME] [--columns a,b]
 gulliver translate SQL --to D [--from D] [--check] [-o PATH]
-gulliver incremental SQL [--time-column C] [--unique-key K] [--period 1d] [--lookback 1]
+gulliver incremental SQL [--time-column C] [--unique-key K] [--period 1d] [--lookback 1]   lookback must be at least 0
 gulliver check TARGET [--where W] [--unique K] [--not-null C] [--accepted C=a|b] [--range C=min:max] [--fresh C=24h] [--min-rows N] [--max-change PCT] [--samples 0-20]
 gulliver top [--source auto|receipts|pg_stat_statements|bigquery_jobs|snowflake_history|csv:FILE|jsonl:FILE]
              [--file PATH] [--days 7] [--limit 20] [--analyze 10] [--rank-by auto|cost|runtime|bytes|calls] [-o PATH]
@@ -798,7 +798,7 @@ gulliver review [--models DIR] [--base REF] [--head REF] | [--manifest-base FILE
 gulliver selftest security [--corpus FILE]   the bypass test set and the DuckDB sandbox
 gulliver spend [--by agent|day|table|session|task|connection|kind] [--days 7] [--format markdown|csv] [-o PATH]
 gulliver audit verify [--head HASH]   check the hash chain over ledger, receipts and approvals
-gulliver prune [--older-than 30d] [--keep-last N] [--dry-run]   clean up old receipts and expired approvals
+gulliver prune [--older-than 30d] [--keep-last N] [--dry-run]   clean up old receipts and expired approvals; keep-last must be at least 0
 gulliver tools --format mcp|openai|gemini [--toolset core|pipeline|all|NAMES]
 gulliver mcp [--http] [--toolset core|pipeline|all|NAMES]   start the MCP server
 ```
