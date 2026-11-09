@@ -35,6 +35,13 @@ def _write_output(args: argparse.Namespace, text: str | None) -> None:
         Path(path).write_text(text, encoding="utf-8")
 
 
+def _write_report(args: argparse.Namespace, text: str) -> None:
+    """`-o/--output PATH` for a report: write exactly the text it would print, and confirm the path."""
+    path = Path(args.output)
+    path.write_text(text, encoding="utf-8")
+    print(f"Wrote {path}")
+
+
 def _print_human(result: dict[str, Any]) -> None:
     from .receipts import render_markdown
 
@@ -336,6 +343,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--by", choices=["agent", "day", "table", "session", "task", "connection", "kind"], default="agent")
     p.add_argument("--days", type=int, default=7, help="How many days back, today included (default 7)")
     p.add_argument("--format", choices=["markdown", "csv"], default="markdown")
+    p.add_argument("-o", "--output", metavar="PATH", help="Write the report (in --format) to PATH instead of printing it")
 
     p = sub.add_parser("calibration", help="Compare rehearsal prediction ranges with real runs")
     p.add_argument("--days", type=int, default=30, help="How many days back, today included (default 30)")
@@ -353,6 +361,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--analyze", type=int, default=10, help="Top groups to lint, fix and price (default 10)")
     p.add_argument("--rank-by", choices=["auto", "cost", "runtime", "bytes", "calls"], default="auto")
     p.add_argument("--dialect", default=None, help="Dialect of the SQL in a file (default: connection's)")
+    p.add_argument("-o", "--output", metavar="PATH", help="Write the report to PATH instead of printing it")
 
     from .review import add_arguments as review_arguments
 
@@ -485,7 +494,11 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
             result = workload.top(settings, source=args.source, connection=conn, days=args.days, limit=args.limit,
                                   analyze=args.analyze, rank_by=args.rank_by, path=args.path, dialect=args.dialect)
             if not args.json:
-                print(workload.render_text(result))
+                text = workload.render_text(result)
+                if getattr(args, "output", None):
+                    _write_report(args, text)
+                else:
+                    print(text)
                 return EXIT.get(str(result.get("status")), 1)
             return _emit(result, args.json)
         if args.command in ("snapshot", "drift", "translate", "diff", "incremental", "check"):
@@ -532,7 +545,11 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
             result = runaway.spend(settings, by=args.by, days=args.days)
             if args.json or result["status"] != "ok":
                 return _emit(result, args.json)
-            print(runaway.render_spend(result, args.format), end="")
+            text = runaway.render_spend(result, args.format)
+            if getattr(args, "output", None):
+                _write_report(args, text)
+            else:
+                print(text, end="")
             return 0
         if args.command == "status":
             result = core.status(settings)

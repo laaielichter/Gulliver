@@ -390,6 +390,29 @@ def test_cli_agent_flag_and_spend(demo_db, state, capsys):
     assert capsys.readouterr().out.startswith("table,usd")
 
 
+def test_spend_and_top_write_the_report_to_a_file(demo_db, state, capsys, tmp_path):
+    assert main(["--dsn", demo_db, "--agent", "cli-bot", "run", "--json", Q]) == 0
+    capsys.readouterr()
+
+    spend_csv = tmp_path / "spend.csv"
+    assert main(["--dsn", demo_db, "spend", "--by", "agent", "--format", "csv",
+                 "-o", str(spend_csv)]) == 0
+    assert capsys.readouterr().out.strip() == f"Wrote {spend_csv}"
+    written = spend_csv.read_text(encoding="utf-8")
+    assert written.startswith("agent,usd")
+    # The file holds exactly the text the command would have printed.
+    assert main(["--dsn", demo_db, "spend", "--by", "agent", "--format", "csv"]) == 0
+    assert capsys.readouterr().out == written
+
+    top_md = tmp_path / "top.md"
+    assert main(["--dsn", demo_db, "top", "--source", "receipts", "-o", str(top_md)]) in (0, 1)
+    assert capsys.readouterr().out.strip() == f"Wrote {top_md}"
+    written_top = top_md.read_text(encoding="utf-8")
+    assert written_top
+    assert main(["--dsn", demo_db, "top", "--source", "receipts"]) in (0, 1)
+    assert capsys.readouterr().out.rstrip("\n") == written_top
+
+
 # -- audit chain ------------------------------------------------------------------------------------------
 def _some_history(settings):
     core.preflight(settings, Q)

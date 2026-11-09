@@ -4,6 +4,7 @@
 
 ### Added
 - `gulliver rules --format markdown|json` prints a generated rule table (markdown) or the same JSON as `--json`; the README Scale lint rules table is generated from it (#18).
+- `gulliver spend -o PATH` and `gulliver top -o PATH` write the report (in `--format` for `spend`) to a UTF-8 file and print the path, instead of only printing it (#19).
 - Opt-in `check --samples N` / MCP `samples` (0-20) reports guarded offending values and row counts for failed unique, accepted-values and range checks. Each extra query is budget-gated and logged; blocked or failed samples leave the check result intact (#48, #49).
 - Lint rule GV016 `order-by-random`: warns on `ORDER BY RANDOM()` / `RAND()`, also with LIMIT, and points to `TABLESAMPLE` / `USING SAMPLE` for random sampling (#23).
 - Prompt-injection scan: new `override_i18n` signal for "ignore previous instructions" in Dutch, German, French and Spanish (#22).
