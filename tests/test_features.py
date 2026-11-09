@@ -290,6 +290,14 @@ def test_incremental_append_dbt_uses_this(settings):
     assert "unique_key='event_id'" in r["dbt_model"]
 
 
+def test_incremental_rejects_negative_lookback(settings):
+    r = features.incremental(settings, "select user_id, count(*) from events group by 1",
+                            time_column="ts", lookback=-1)
+    assert r["status"] == "error"
+    assert "lookback" in r["error"].lower()
+    assert "next_step" in r
+
+
 def test_parse_period():
     assert incremental.parse_period("24h").total_seconds() == 86400
     with pytest.raises(ValueError):

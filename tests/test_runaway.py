@@ -769,6 +769,27 @@ def test_prune_keep_last_protects_newest_receipts(settings):
     assert len(remaining) == 2
 
 
+def test_prune_rejects_negative_keep_last(settings):
+    from gulliver.store import iso, now_utc
+
+    store = core.Store(settings.state_dir)
+    old_time = iso(now_utc() - timedelta(days=40))
+
+    # Create a receipt to ensure prune doesn't run
+    store.save_receipt({"receipt_id": "gv-20200101-000001-run-k1",
+                       "action": "run", "created_at": old_time, "status": "ok"})
+
+    # Prune with negative keep_last should return error
+    res = runaway.prune(settings, older_than="30d", keep_last=-1)
+    assert res["status"] == "error"
+    assert "keep_last" in res["error"].lower()
+    assert "next_step" in res
+
+    # Verify nothing was deleted
+    remaining = [p.stem for p in store.receipts_dir.glob("*.json")]
+    assert len(remaining) == 1
+
+
 def test_prune_protects_live_rehearsals_and_approvals(settings):
     from gulliver.store import iso, now_utc
 

@@ -34,6 +34,7 @@
 - @abu-tahir-0 for five fixes on their first day: strict `check --range` bounds (#85), one row-count history per connection (#86), whole-number and non-boolean budget limits (#84), refusing unknown `gulliver.toml` sections (#83) and GV013 for leading `_` (#82).
 
 ### Fixed
+- `gulliver incremental --lookback` and `gulliver prune --keep-last` refuse negative values with a clear error message. Before, negative lookback was silently treated as zero and negative keep_last disabled the protection (#98).
 - `check --range` refuses `nan`, infinite and non-numeric bounds and an inverted `min > max` before any query runs, naming the column. Before, `nan` / `inf` reached the engine as column names and an inverted range silently failed every row (#74, #85).
 - `check --max-change` keys the row-count history on the resolved connection name, so a check with and without `-c default` shares one history. Histories saved under the old key are still read and migrated (#75, #86).
 - Whole-number budget limits (`max_output_rows`, `max_bytes`, `max_repeats`, ...) refuse fractions instead of truncating them (`max_output_rows = 0.5` used to become `0` and switch the limit off), and every budget key refuses `true` / `false` (#76, #84).

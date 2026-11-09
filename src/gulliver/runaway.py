@@ -35,7 +35,7 @@ from sqlglot import exp
 
 from . import audit
 from .config import Settings
-from .core import _fmt_bytes, _fmt_usd
+from .core import _error, _fmt_bytes, _fmt_usd
 from .engines import Engine, dialect_for
 from .identity import Identity, current
 from .sqlsafety import Statement, classify
@@ -533,6 +533,9 @@ def audit_verify(settings: Settings, head: str | None = None) -> dict[str, Any]:
 
 def prune(settings: Settings, older_than: str | timedelta = "30d",
           keep_last: int | None = None, dry_run: bool = False) -> dict[str, Any]:
+    if keep_last is not None and keep_last < 0:
+        return _error("keep_last must be a non-negative integer",
+                     next_step="Use --keep-last 0 or higher. Negative values would silently disable protection.")
     from .incremental import parse_period
 
     delta = parse_period(older_than) if isinstance(older_than, str) else older_than
