@@ -265,6 +265,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--list", action="store_true", help="List recent receipts instead of showing one")
     p.add_argument("--limit", type=int, default=20, help="Maximum receipts to list (default: 20)")
     p.add_argument("--status", help="Only list receipts with this status, e.g. needs_approval")
+    p.add_argument("--action", help="Only list receipts with this action, e.g. run or rehearse")
     p.add_argument("--format", choices=["markdown", "json"], default="markdown")
     p.add_argument("-o", "--output", metavar="PATH", help="Also write the receipt (in --format) to PATH")
 
@@ -591,7 +592,8 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
             if args.list:
                 if args.receipt_id != "latest":
                     parser.error("receipt --list does not take a receipt ID")
-                result = core.list_receipts(settings, limit=args.limit, status=args.status)
+                result = core.list_receipts(settings, limit=args.limit, status=args.status,
+                                            action=args.action, connection=args.connection)
                 if result.get("status") == "ok" and not args.json:
                     for rec in result["receipts"]:
                         print(f"{rec['receipt_id']}  {rec['created_at']}  {rec['action']}  "

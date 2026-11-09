@@ -745,7 +745,8 @@ def get_receipt(settings: Settings, receipt_id: str, fmt: str = "markdown") -> d
             "next_step": "Show this markdown to the human."}
 
 
-def list_receipts(settings: Settings, limit: int = 20, status: str | None = None) -> dict[str, Any]:
+def list_receipts(settings: Settings, limit: int = 20, status: str | None = None,
+                  action: str | None = None, connection: str | None = None) -> dict[str, Any]:
     """Return a compact summary of recent receipts.
 
     The full receipt stays in the store; list output is intentionally limited to
@@ -758,6 +759,10 @@ def list_receipts(settings: Settings, limit: int = 20, status: str | None = None
     receipts = _store(settings).receipts()
     if status is not None:
         receipts = [rec for rec in receipts if rec.get("status") == status]
+    if action is not None:
+        receipts = [rec for rec in receipts if rec.get("action") == action]
+    if connection is not None:
+        receipts = [rec for rec in receipts if rec.get("connection") == connection]
 
     summaries = []
     for rec in receipts[:limit]:
