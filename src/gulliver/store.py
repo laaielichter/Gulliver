@@ -125,12 +125,18 @@ class Store:
         return None
 
     def prune(self, older_than: timedelta, keep_last: int | None = None,
-              dry_run: bool = False) -> dict[str, Any]:
+              dry_run: bool = False, reason: str | None = None) -> dict[str, Any]:
         """Remove receipts older than `older_than` and expired approvals, appending an audit record for each.
 
         Receipts needed by an active approval (expires_at > now) or an active rehearsal
         (within REHEARSAL_TTL) are never pruned. With `keep_last`, keeps at least N newest receipts.
         """
+        if keep_last is not None and keep_last < 0:
+            return {
+                "status": "error",
+                "error": "--keep-last must be at least 0.",
+                "next_step": "Pass 0 or a positive number of receipts to keep.",
+            }
         now = now_utc()
         cutoff = now - older_than
 
@@ -210,8 +216,9 @@ class Store:
                 try:
                     raw = p.read_bytes()
                     rid = p.stem
+                    prune_reason = reason or f"older than {older_than}"
                     self._audit("prune", rid, raw, target="receipt",
-                                reason=f"older than {older_than}")
+                                reason=prune_reason)
                     p.unlink(missing_ok=True)
                 except OSError:
                     continue

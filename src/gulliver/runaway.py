@@ -532,20 +532,40 @@ def audit_verify(settings: Settings, head: str | None = None) -> dict[str, Any]:
 
 
 def prune(settings: Settings, older_than: str | timedelta = "30d",
-          keep_last: int | None = None, dry_run: bool = False) -> dict[str, Any]:
+          keep_last: int | None = None, dry_run: bool = False,
+          reason: str | None = None) -> dict[str, Any]:
     from .incremental import parse_period
 
-    delta = parse_period(older_than) if isinstance(older_than, str) else older_than
+    if keep_last is not None and keep_last < 0:
+        return {
+            "status": "error",
+            "error": "--keep-last must be at least 0.",
+            "next_step": "Pass 0 or a positive number of receipts to keep.",
+        }
+
+    if isinstance(older_than, str):
+        delta = parse_period(older_than)
+        prune_reason = reason or f"older than {older_than}"
+    else:
+        delta = older_than
+        prune_reason = reason or f"older than {older_than}"
     store = Store(settings.state_dir)
-    return store.prune(older_than=delta, keep_last=keep_last, dry_run=dry_run)
+    return store.prune(older_than=delta, keep_last=keep_last, dry_run=dry_run, reason=prune_reason)
 
 
 def render_prune(result: dict[str, Any]) -> str:
     from .core import _fmt_bytes
 
+    if result.get("status") == "error":
+        msg = result.get("error", "Error")
+        next_step = result.get("next_step", "")
+        return f"Error: {msg}\n\nnext: {next_step}" if next_step else f"Error: {msg}"
+
     lines = []
-    prefix = "[dry-run] " if result.get("dry_run") else ""
-    lines.append(f"{prefix}Pruned {result['pruned_receipts']} receipt(s) and {result['pruned_approvals']} expired approval(s).")
+    if result.get("dry_run"):
+        lines.append(f"Would prune {result['pruned_receipts']} receipt(s) and {result['pruned_approvals']} expired approval(s).")
+    else:
+        lines.append(f"Pruned {result['pruned_receipts']} receipt(s) and {result['pruned_approvals']} expired approval(s).")
     lines.append(f"Freed: {_fmt_bytes(result['bytes_freed'])}")
     if result.get("oldest_kept"):
         lines.append(f"Oldest kept receipt: {result['oldest_kept']}")
