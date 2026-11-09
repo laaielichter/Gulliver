@@ -35,7 +35,7 @@ from sqlglot import exp
 
 from . import audit
 from .config import Settings
-from .core import _fmt_bytes, _fmt_usd
+from .core import _error, _fmt_bytes, _fmt_usd
 from .engines import Engine, dialect_for
 from .identity import Identity, current
 from .sqlsafety import Statement, classify
@@ -535,6 +535,8 @@ def prune(settings: Settings, older_than: str | timedelta = "30d",
           keep_last: int | None = None, dry_run: bool = False) -> dict[str, Any]:
     from .incremental import parse_period
 
+    if keep_last is not None and keep_last < 0:
+        return _error("--keep-last must be at least 0.", "Use --keep-last 0 or a positive number of receipts to protect.")
     delta = parse_period(older_than) if isinstance(older_than, str) else older_than
     store = Store(settings.state_dir)
     return store.prune(older_than=delta, keep_last=keep_last, dry_run=dry_run)
