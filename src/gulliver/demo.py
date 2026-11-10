@@ -5,10 +5,31 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+# `--events 99999999999` used to be accepted and handed to DuckDB's range(), which
+# happily starts generating rows until the disk fills. 5,000,000 events (the default)
+# is 25 MB on this machine and 20,000,000 is 96 MB and 5 s, so 100,000,000 is about
+# half a gigabyte and 25 s: still a demo, and still well inside any laptop that can
+# run DuckDB at all.
+MAX_EVENTS = 100_000_000
+
 
 def build_demo(path: str | os.PathLike[str] = "gulliver_demo.duckdb", events: int = 5_000_000,
                users: int = 100_000, overwrite: bool = False) -> dict:
     import duckdb
+
+    from .core import _error
+
+    if events < 1:
+        return _error(
+            f"--events must be 1 or more (got {events}); a demo with no events cannot be inspected or rehearsed",
+            next_step="Pass --events 1 or more, or leave it out to use the default of 5,000,000.",
+        )
+    if events > MAX_EVENTS:
+        return _error(
+            f"--events must be {MAX_EVENTS:,} or fewer (got {events:,}); that many rows would fill the disk "
+            "before the demo could be used",
+            next_step=f"Pass --events {MAX_EVENTS:,} or fewer, or use your own warehouse for data that large.",
+        )
 
     target = Path(path)
     if target.exists():

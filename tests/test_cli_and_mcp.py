@@ -1,7 +1,9 @@
 import asyncio
 import json
+import os
 
 from gulliver.cli import main
+from gulliver.demo import MAX_EVENTS, build_demo
 from gulliver.mcp_server import build_server, export_tools
 
 TOOLS = {"gulliver_status", "gulliver_inspect", "gulliver_lint", "gulliver_preflight", "gulliver_rehearse",
@@ -97,3 +99,51 @@ def test_cli_translate_output_file(tmp_path, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["warnings"]  # still printed
     assert out.read_text(encoding="utf-8") == data["sql"]
+
+
+def test_cli_demo_refuses_events_below_one(state, tmp_path, capsys):
+    target = str(tmp_path / "never.duckdb")
+    for value in ("-5", "0"):
+        assert main(["demo", target, "--events", value, "--json"]) == 1
+        data = json.loads(capsys.readouterr().out)
+        assert data["status"] == "error"
+        assert value in data["error"]
+        assert "1 or more" in data["error"]
+        assert data["next_step"]
+    assert not os.path.exists(target)
+
+
+def test_cli_demo_refuses_events_above_the_limit(state, tmp_path, capsys):
+    target = str(tmp_path / "never.duckdb")
+    assert main(["demo", target, "--events", str(MAX_EVENTS + 1), "--json"]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error"
+    assert f"{MAX_EVENTS:,}" in data["error"]
+    assert not os.path.exists(target)
+
+
+def test_cli_demo_builds_inside_the_limits(state, tmp_path, capsys):
+    target = str(tmp_path / "small.duckdb")
+    assert main(["demo", target, "--events", "50", "--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "ok"
+    assert data["created"] is True
+    assert data["tables"]["events"] == 50
+
+
+def test_build_demo_refuses_events_below_one(tmp_path):
+    target = str(tmp_path / "never.duckdb")
+    for value in (-5, 0):
+        result = build_demo(target, events=value)
+        assert result["status"] == "error"
+        assert "1 or more" in result["error"]
+        assert str(value) in result["error"]
+    assert not os.path.exists(target)
+
+
+def test_build_demo_refuses_events_above_the_limit(tmp_path):
+    target = str(tmp_path / "never.duckdb")
+    result = build_demo(target, events=MAX_EVENTS + 1)
+    assert result["status"] == "error"
+    assert f"{MAX_EVENTS:,}" in result["error"]
+    assert not os.path.exists(target)

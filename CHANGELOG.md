@@ -34,6 +34,7 @@
 - @abu-tahir-0 for five fixes on their first day: strict `check --range` bounds (#85), one row-count history per connection (#86), whole-number and non-boolean budget limits (#84), refusing unknown `gulliver.toml` sections (#83) and GV013 for leading `_` (#82).
 
 ### Fixed
+- `gulliver demo --events N` refuses a value below 1 and a value above 100,000,000 with `status: error` and a `next_step`, and creates no file. Before, `--events -5` reported `status: "ok"` and `"tables": {"events": -5}` over an empty table, and `--events 99999999999` asked DuckDB to generate rows until the disk filled. `build_demo()` refuses both too, since the MCP and Python callers go through it (#112).
 - `spend --days N`, `calibration --days N` and `top --limit N` refuse a value below 1 with `status: error` and a `next_step`, and exit 1 instead of quietly reporting an empty or off-by-one window. `top --analyze` refuses a negative value too, while `--analyze 0` still lists the groups without analysing them (#92).
 - `check --range` refuses `nan`, infinite and non-numeric bounds and an inverted `min > max` before any query runs, naming the column. Before, `nan` / `inf` reached the engine as column names and an inverted range silently failed every row (#74, #85).
 - `check --max-change` keys the row-count history on the resolved connection name, so a check with and without `-c default` shares one history. Histories saved under the old key are still read and migrated (#75, #86).
