@@ -36,6 +36,10 @@ def parse_spec(unique: list[str] | None = None, not_null: list[str] | None = Non
                max_change_pct: float | None = None) -> CheckSpec:
     """Parse CLI-style strings: unique 'id' or 'a,b'; accepted 'status=new|paid'; range 'amount=0:1000';
     fresh 'ts=24h'."""
+    if min_rows is not None and min_rows < 0:
+        raise ValueError(f"min_rows needs 0 or more, got {min_rows!r}")
+    if max_change_pct is not None and not (math.isfinite(max_change_pct) and max_change_pct >= 0):
+        raise ValueError(f"max_change needs a finite number, 0 or more, got {max_change_pct!r}")
     spec = CheckSpec(min_rows=min_rows, max_change_pct=max_change_pct)
     for u in unique or []:
         spec.unique.append([c.strip() for c in u.split(",") if c.strip()])
