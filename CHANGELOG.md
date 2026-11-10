@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- `gulliver-mcp --http --port` and `gulliver mcp --http --port` reject values outside 0-65535 with a one-line message and exit code 2 instead of an asyncio traceback (#113).
+
 ### Added
 - `gulliver rules --format markdown|json` prints a generated rule table (markdown) or the same JSON as `--json`; the README Scale lint rules table is generated from it (#18).
 - `gulliver spend -o/--output PATH` and `gulliver top -o/--output PATH` write the report as UTF-8 and print a one-line confirmation (#19).

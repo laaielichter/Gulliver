@@ -533,3 +533,24 @@ def test_server_filled_parameters_have_no_none_default():
                 checked += 1
                 assert param.default is not None, f"{tool.name}.{name} has a None default (breaks Python 3.10)"
     assert checked >= 2  # gulliver_run's probe and answer
+
+def test_mcp_port_out_of_range(capsys):
+    """Bad --port values must fail cleanly before any server starts."""
+    from gulliver.mcp_server import main as mcp_main
+    for bad in ["-1", "70000", "65536"]:
+        with pytest.raises(SystemExit) as exc:
+            mcp_main(["--http", "--port", bad])
+        assert exc.value.code == 2
+        err = capsys.readouterr().err
+        assert "port must be 0-65535" in err
+        assert "OverflowError" not in err
+
+def test_cli_mcp_port_out_of_range(capsys):
+    """The gulliver mcp subcommand forwards the same check."""
+    for bad in ["-1", "70000"]:
+        with pytest.raises(SystemExit) as exc:
+            main(["mcp", "--http", "--port", bad])
+        assert exc.value.code == 2
+        err = capsys.readouterr().err
+        assert "port must be 0-65535" in err
+

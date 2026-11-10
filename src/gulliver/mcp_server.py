@@ -543,6 +543,10 @@ def main(argv: list[str] | None = None) -> None:
                              "of those and tool names. Fewer tools = a smaller schema in the agent's context.")
     parser.add_argument("--version", action="version", version=f"gulliver-mcp {__version__}")
     args = parser.parse_args(argv)
+    if not 0 <= args.port <= 65535:
+        print("gulliver-mcp: port must be 0-65535", file=sys.stderr)
+        raise SystemExit(2)
+
     _ARGS.update(config=args.config, dsn=args.dsn)
     try:
         load_settings(config_path=args.config, dsn=args.dsn)
