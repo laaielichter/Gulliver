@@ -98,6 +98,8 @@ And for the pipeline around the query (details in [Pipeline tools](#pipeline-too
 
 ## Quick start (2 minutes, no warehouse needed)
 
+New to Gulliver? Start with the [step-by-step tutorial](docs/tutorial.md) on the demo database (inspect → preflight → lint → fix → rehearse → run → receipt).
+
 ```bash
 pip install gulliver-mcp
 gulliver demo                       # creates gulliver_demo.duckdb with 5M events
