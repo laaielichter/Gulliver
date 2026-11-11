@@ -445,6 +445,10 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
                 raise ValueError("Give one SQL statement in quotes, or existing .sql files and folders")
             args.sql = args.sql[0] if args.sql else None
         if args.command == "lint":
+            from .lint_files import load_lint_config
+
+            # Validate [lint] for SQL strings as well as file linting.
+            load_lint_config(args.config)
             dialect = args.dialect
             if dialect is None:
                 try:

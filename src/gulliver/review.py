@@ -24,7 +24,7 @@ from sqlglot import exp
 from sqlglot.errors import SqlglotError
 
 from . import __version__, lineage
-from .config import ConfigError, Settings, find_config_file
+from .config import ConfigError, Settings, find_config_file, table_section
 from .engines import EngineError, dialect_for
 from .lint import lint
 from .sqlsafety import classify
@@ -103,7 +103,7 @@ def load_policy(config_path: str | os.PathLike[str] | None = None,
     path = find_config_file(config_path)
     if path:
         with path.open("rb") as fh:
-            data = dict(tomllib.load(fh).get("review") or {})
+            data = table_section(tomllib.load(fh), "review")
     data.update({k: v for k, v in (overrides or {}).items() if v is not None})
     return Policy.from_mapping(data)
 

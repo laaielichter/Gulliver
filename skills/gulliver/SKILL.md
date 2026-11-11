@@ -94,3 +94,6 @@ and returns a counterexample when rows differ; a test is not a proof, so labels 
 Connections and budgets live in `gulliver.toml` (see `gulliver.example.toml` in the repo) or in environment
 variables such as `GULLIVER_DSN=warehouse.duckdb`. Try it with `gulliver demo`, which builds a 5-million-row
 DuckDB file.
+
+If a config error says a section "must be a table", use a TOML section such as `[budget]` with keys,
+rather than a plain value such as `budget = 3`. Fix the named section before retrying.

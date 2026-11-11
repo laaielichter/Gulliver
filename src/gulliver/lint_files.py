@@ -37,7 +37,7 @@ from sqlglot.dialects.dialect import Dialect
 from sqlglot.errors import SqlglotError
 from sqlglot.tokens import Token, TokenType
 
-from .config import ConfigError, find_config_file
+from .config import ConfigError, find_config_file, table_section
 from .lineage import BLOCK_RE, COMMENT_RE, CONFIG_RE, EXPR_RE, REF_RE, SOURCE_RE, THIS_RE
 from .lint import RULES, SEVERITY_ORDER, Finding, lint
 from .sqlsafety import classify
@@ -147,7 +147,7 @@ def load_lint_config(config_path: str | os.PathLike[str] | None = None) -> LintC
         return LintConfig()
     with path.open("rb") as fh:
         data = tomllib.load(fh)
-    return lint_config_from_mapping(dict(data.get("lint") or {}), path.resolve().parent)
+    return lint_config_from_mapping(table_section(data, "lint"), path.resolve().parent)
 
 
 # -- finding files ------------------------------------------------------------------------------------

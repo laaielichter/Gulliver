@@ -117,3 +117,5 @@ multiplies rows). In the default mode a join that multiplies rows shows up as a 
 - The result policy (`mask`, `hash`, `deny`), the review policy and the per-agent and per-session budgets are
   set by the human. Do not split or disguise a query to get under a limit.
 - Credentials and budgets are set by the human in `gulliver.toml` or environment variables.
+- A config error saying a section "must be a table" means it needs a TOML section such as `[budget]`
+  with keys, rather than a plain value such as `budget = 3`. Fix the named section before retrying.

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Wrong-type `budget`, `connections`, named connection, `approval`, `lint` and `review` sections in `gulliver.toml` now report which section must be a table instead of crashing or silently using defaults (#126).
+
 ## 0.4.0 - 2026-11-11
 
 Data checks you define once in `gulliver.toml` and run in CI, a lint baseline for existing repos, rehearsal

@@ -236,6 +236,16 @@ def find_config_file(explicit: str | os.PathLike[str] | None = None) -> Path | N
     return None
 
 
+def table_section(data: dict[str, Any], key: str, *, name: str | None = None) -> dict[str, Any]:
+    """Read an optional TOML table without treating falsey values or arrays as tables."""
+    value = data.get(key, {})
+    if not isinstance(value, dict):
+        section = name or key
+        raise ConfigError(f"[{section}] must be a table (a [{section}] section with keys), "
+                          f"not {type(value).__name__}.")
+    return dict(value)
+
+
 def load_settings(
     config_path: str | os.PathLike[str] | None = None,
     dsn: str | None = None,
@@ -254,8 +264,9 @@ def load_settings(
             )
 
     connections: dict[str, Connection] = {}
-    for conn_name, conn_data in (data.get("connections") or {}).items():
-        conn_data = dict(conn_data)
+    connections_data = table_section(data, "connections")
+    for conn_name in connections_data:
+        conn_data = table_section(connections_data, conn_name, name=f"connections.{conn_name}")
         if "dsn" in conn_data and "engine" not in conn_data:
             conn = connection_from_dsn(str(conn_data.pop("dsn")), conn_name)
             conn = replace(conn, params={**conn.params, **conn_data})
@@ -276,7 +287,7 @@ def load_settings(
     if not default or default not in connections:
         default = next(iter(connections))
 
-    budget_data = dict(data.get("budget") or {})
+    budget_data = table_section(data, "budget")
     for env_key, attr in _ENV_BUDGET.items():
         if os.environ.get(env_key):
             budget_data[attr] = os.environ[env_key]
@@ -294,7 +305,7 @@ def load_settings(
         checks[check_name] = parse_check_config(str(check_name), check_data)
 
     return Settings(connections=connections, default_connection=default, budget=budget, state_dir=state_dir,
-                    approval_channel=_approval_channel(data.get("approval") or {}), checks=checks)
+                    approval_channel=_approval_channel(table_section(data, "approval")), checks=checks)
 
 
 APPROVAL_CHANNELS = ("cli", "elicitation")
