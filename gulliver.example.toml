@@ -78,3 +78,16 @@ channel = "cli"               # cli: a human runs `gulliver approve <receipt_id>
 # max_increase_usd = 50       # per month for the whole change
 # runs_per_day = 1
 # fail_on = ["cost", "breaking_with_downstream", "new_lint_error", "superlinear"]
+
+
+# [checks.events]              # data quality checks: define once, run with `gulliver check events` or `gulliver check --all`
+# target = "events"            # table or SELECT; defaults to the section name
+# connection = "local"         # optional: connection name from [connections.*]
+# where = "ts >= current_date - 7"
+# unique = ["event_id"]        # composite key: ["event_id", ["user_id", "session_id"]] or "user_id,session_id"
+# not_null = ["user_id", "amount"]
+# accepted = { event_type = ["view", "click"] }
+# range = { amount = [0, 10000] }   # either side may be omitted: [0, ""], ["", 100], [10]
+# fresh = { ts = "24h" }
+# min_rows = 1000
+# max_change_pct = 20

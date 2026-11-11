@@ -68,12 +68,14 @@ def test_every_known_section_loads(tmp_path, monkeypatch):
         "[approval]\nchannel = \"cli\"\n"
         "[lint]\nfail_on = \"error\"\n"
         "[review]\nfail_on = \"cost\"\n"
+        "[checks.events]\ntarget = \"events\"\nmin_rows = 1\n"
     )
     s = load_settings()
     assert s.default_connection == "local"
     assert s.state_dir == Path(".state")
     assert s.budget.max_query_usd == 2.5
     assert s.approval_channel == "cli"
+    assert "events" in s.checks and s.checks["events"].target == "events"
 
 
 def test_default_is_in_memory_duckdb(tmp_path, monkeypatch):
@@ -178,3 +180,103 @@ def test_non_finite_agent_day_usd_table(tmp_path, monkeypatch):
         with pytest.raises(ConfigError) as excinfo:
             load_settings()
         assert "agent_day_usd" in str(excinfo.value)
+
+
+
+def test_checks_toml_parsing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "gulliver.toml").write_text(
+        "[connections.local]\nengine = \"duckdb\"\npath = \":memory:\"\n"
+        "[checks.events]\n"
+        'target = "events"\n'
+        'connection = "local"\n'
+        'where = "ts >= current_date - 7"\n'
+        'unique = ["event_id", ["user_id", "session_id"], "a,b"]\n'
+        'not_null = ["user_id", "amount"]\n'
+        'accepted = { event_type = ["view", "click"] }\n'
+        "range = { amount = [0, 10000] }\n"
+        'fresh = { ts = "24h" }\n'
+        "min_rows = 1000\n"
+        "max_change_pct = 20\n"
+        "samples = 5\n"
+    )
+    s = load_settings()
+    assert "events" in s.checks
+    cfg = s.checks["events"]
+    assert cfg.name == "events"
+    assert cfg.target == "events"
+    assert cfg.connection == "local"
+    assert cfg.where == "ts >= current_date - 7"
+    assert cfg.samples == 5
+    assert cfg.spec.unique == [["event_id"], ["user_id", "session_id"], ["a", "b"]]
+    assert cfg.spec.not_null == ["user_id", "amount"]
+    assert cfg.spec.accepted == {"event_type": ["view", "click"]}
+    assert cfg.spec.ranges == {"amount": (0.0, 10000.0)}
+    assert cfg.spec.fresh == {"ts": "24h"}
+    assert cfg.spec.min_rows == 1000
+    assert cfg.spec.max_change_pct == 20.0
+
+
+def test_checks_unknown_keys_refused(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "gulliver.toml").write_text(
+        "[checks.events]\n"
+        'target = "events"\n'
+        "unknown_foo = 123\n"
+    )
+    with pytest.raises(ConfigError, match=r"Unknown check keys in \[checks.events\]: unknown_foo"):
+        load_settings()
+
+
+def test_checks_range_shapes_and_errors(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    # open bounds
+    (tmp_path / "gulliver.toml").write_text(
+        "[checks.t1]\nrange = { a = [0, ''] }\n"
+        "[checks.t2]\nrange = { b = ['', 50] }\n"
+        "[checks.t3]\nrange = { c = [10] }\n"
+        "[checks.t4]\nrange = { d = { min = 1, max = 5 } }\n"
+    )
+    s = load_settings()
+    assert s.checks["t1"].spec.ranges["a"] == (0.0, None)
+    assert s.checks["t2"].spec.ranges["b"] == (None, 50.0)
+    assert s.checks["t3"].spec.ranges["c"] == (10.0, None)
+    assert s.checks["t4"].spec.ranges["d"] == (1.0, 5.0)
+
+    # inverted bounds
+    (tmp_path / "gulliver.toml").write_text("[checks.bad]\nrange = { x = [100, 1] }\n")
+    with pytest.raises(ConfigError, match=r"min 100\.0 > max 1\.0"):
+        load_settings()
+
+
+def test_checks_validation_errors(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    # empty target
+    (tmp_path / "gulliver.toml").write_text('[checks.bad]\ntarget = ""\n')
+    with pytest.raises(ConfigError, match="target must be a non-empty string"):
+        load_settings()
+
+    # section with no checks configured
+    (tmp_path / "gulliver.toml").write_text('[checks.empty]\ntarget = "users"\n')
+    with pytest.raises(ConfigError, match=r"\[checks\.empty\] has no checks configured; give at least one check"):
+        load_settings()
+
+    # empty accepted list
+    (tmp_path / "gulliver.toml").write_text('[checks.bad_acc]\ntarget = "users"\naccepted = { col = [] }\n')
+    with pytest.raises(ConfigError, match=r"\[checks\.bad_acc\] accepted values list for 'col' cannot be empty"):
+        load_settings()
+
+    # negative min_rows
+    (tmp_path / "gulliver.toml").write_text("[checks.bad]\nmin_rows = -1\n")
+    with pytest.raises(ConfigError, match="min_rows must be a non-negative integer"):
+        load_settings()
+
+    # negative max_change_pct
+    (tmp_path / "gulliver.toml").write_text("[checks.bad]\nmax_change_pct = -5\n")
+    with pytest.raises(ConfigError, match="max_change_pct must be a non-negative number"):
+        load_settings()
+
+    # out of bounds samples
+    (tmp_path / "gulliver.toml").write_text("[checks.bad]\nsamples = 25\n")
+    with pytest.raises(ConfigError, match="samples must be an integer from 0 to 20"):
+        load_settings()

@@ -479,13 +479,38 @@ def _check_samples(settings: Settings, conn: Connection, engine: Engine, source:
 def check(settings: Settings, target: str, connection: str | None = None, where: str | None = None,
           unique: list[str] | None = None, not_null: list[str] | None = None, accepted: list[str] | None = None,
           ranges: list[str] | None = None, fresh: list[str] | None = None, min_rows: int | None = None,
-          max_change_pct: float | None = None, samples: int = 0) -> dict[str, Any]:
+          max_change_pct: float | None = None, samples: int = 0, name: str | None = None,
+          spec: checks_mod.CheckSpec | None = None) -> dict[str, Any]:
     if isinstance(samples, bool) or not isinstance(samples, int) or not 0 <= samples <= 20:
         return _error("samples must be an integer from 0 to 20.")
+    base_spec = spec
+    if name is not None:
+        if name not in settings.checks:
+            known = ", ".join(sorted(settings.checks)) or "(none)"
+            return _error(f"Unknown configured check '{name}'. Configured checks: {known}.")
+        cfg = settings.checks[name]
+        target = cfg.target if target == name else target
+        connection = connection or cfg.connection
+        if where is None:
+            where = cfg.where
+        if samples == 0:
+            samples = cfg.samples
+        base_spec = cfg.spec
+    elif target in settings.checks and base_spec is None:
+        cfg = settings.checks[target]
+        name = target
+        target = cfg.target
+        connection = connection or cfg.connection
+        if where is None:
+            where = cfg.where
+        if samples == 0:
+            samples = cfg.samples
+        base_spec = cfg.spec
     try:
-        spec = checks_mod.parse_spec(unique, not_null, accepted, ranges, fresh, min_rows, max_change_pct)
+        cli_spec = checks_mod.parse_spec(unique, not_null, accepted, ranges, fresh, min_rows, max_change_pct)
     except ValueError as exc:
         return _error(str(exc))
+    spec = checks_mod.merge_specs(base_spec, cli_spec) if base_spec is not None else cli_spec
     store = _store(settings)
     source = target.strip().rstrip(";")
     if not all(ch.isalnum() or ch in "._`\"[]-" for ch in source):
@@ -506,6 +531,8 @@ def check(settings: Settings, target: str, connection: str | None = None, where:
             read_path = legacy_path
     previous = json.loads(read_path.read_text()) if read_path.is_file() else None
     result: dict[str, Any] = {"action": "check", "target": target, "where": where}
+    if name:
+        result["name"] = name
     try:
         with _engine(settings, connection) as (conn, engine):
             sql, plan = checks_mod.build_sql(engine, source, spec, where)
@@ -544,3 +571,75 @@ def check(settings: Settings, target: str, connection: str | None = None, where:
         result.update(untrusted=True, data_notice=guard.DATA_NOTICE)
     store.save_receipt(result)
     return result
+
+
+
+def check_all(settings: Settings, connection: str | None = None, samples: int = 0) -> dict[str, Any]:
+    """Run all data checks configured in gulliver.toml under [checks.*]."""
+    if not settings.checks:
+        return _error("No checks configured in gulliver.toml under [checks.*].")
+    target_summaries: list[dict[str, Any]] = []
+    full_results: list[dict[str, Any]] = []
+    for name, cfg in settings.checks.items():
+        conn = connection or cfg.connection
+        smpls = samples if samples > 0 else cfg.samples
+        res = check(
+            settings,
+            target=cfg.target,
+            connection=conn,
+            where=cfg.where,
+            samples=smpls,
+            spec=cfg.spec,
+            name=name,
+        )
+        full_results.append(res)
+        target_summaries.append({
+            "name": name,
+            "target": cfg.target,
+            "connection": res.get("connection") or conn or settings.default_connection,
+            "status": res.get("status", "error"),
+            "failed": res.get("failed", 0),
+            "receipt_id": res.get("receipt_id"),
+            "next_step": res.get("next_step", ""),
+        })
+
+    any_fail = any(r.get("status") == "fail" for r in full_results)
+    any_block = any(r.get("status") == "block" for r in full_results)
+    any_error = any(r.get("status") == "error" for r in full_results)
+    if any_fail:
+        status = "fail"
+    elif any_block:
+        status = "block"
+    elif any_error:
+        status = "error"
+    else:
+        status = "ok"
+
+    failed_count = sum(1 for t in target_summaries if t["status"] == "fail")
+    error_count = sum(1 for t in target_summaries if t["status"] == "error")
+    blocked_count = sum(1 for t in target_summaries if t["status"] == "block")
+    total_count = len(target_summaries)
+    if status == "ok":
+        next_step = f"All checks passed across {total_count} target(s)."
+    else:
+        parts: list[str] = []
+        if error_count:
+            parts.append(f"{error_count} errored")
+        if blocked_count:
+            parts.append(f"{blocked_count} blocked")
+        parts.append(f"{failed_count} failed")
+        counts_str = ", ".join(parts)
+        next_step = f"{counts_str} of {total_count} target(s). Fix the data or pipeline."
+
+    return {
+        "action": "check",
+        "all": True,
+        "status": status,
+        "targets": target_summaries,
+        "results": full_results,
+        "total_targets": total_count,
+        "failed_targets": failed_count,
+        "errored_targets": error_count,
+        "blocked_targets": blocked_count,
+        "next_step": next_step,
+    }

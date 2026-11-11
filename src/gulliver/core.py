@@ -97,7 +97,7 @@ def _runaway():
 def status(settings: Settings) -> dict[str, Any]:
     spent = _store(settings).spent_today()
     budget = settings.budget
-    return {
+    res = {
         "status": "ok",
         "version": __version__,
         "connections": [c.public_dict() for c in settings.connections.values()],
@@ -109,11 +109,16 @@ def status(settings: Settings) -> dict[str, Any]:
         "workflow": WORKFLOW,
         "next_step": "Call gulliver_inspect to see which tables are big, then gulliver_preflight your SQL.",
     }
+    if settings.checks:
+        res["checks"] = list(settings.checks.keys())
+    return res
 
 
 # -- inspect ---------------------------------------------------------------------------
 def inspect(settings: Settings, connection: str | None = None, table: str | None = None,
             limit: int = 25) -> dict[str, Any]:
+    if not table and not 1 <= limit <= 200:
+        return _error("--limit must be between 1 and 200.", "Use a limit from 1 to 200, for example --limit 25.")
     try:
         with _engine(settings, connection) as (conn, engine):
             if table:
@@ -127,7 +132,7 @@ def inspect(settings: Settings, connection: str | None = None, table: str | None
                 return {"status": "ok", "connection": conn.name, "engine": conn.engine,
                         "table": table_dict,
                         "next_step": "Write your SQL using only the columns you need, then call gulliver_preflight."}
-            tables = engine.list_tables(limit=max(1, min(int(limit), 200)))
+            tables = engine.list_tables(limit=limit)
             return {"status": "ok", "connection": conn.name, "engine": conn.engine,
                     "tables": [t.as_dict() for t in tables],
                     "next_step": "Inspect one table for its columns, or call gulliver_preflight with your SQL."}

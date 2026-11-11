@@ -1,4 +1,4 @@
-# Publishes to PyPI when a version tag (v0.3.0) is pushed or a GitHub release is published.
+# Publishes to PyPI when a version tag (v0.4.0) is pushed or a GitHub release is published.
 # One-time setup on pypi.org: add a "trusted publisher" for project gulliver-mcp,
 # owner laaielichter, repository gulliver, workflow release.yml, environment pypi.
 name: release

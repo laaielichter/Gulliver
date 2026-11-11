@@ -40,7 +40,7 @@ available; otherwise the CLI `gulliver <command> --json` returns the same JSON.
 | Refactored a model, migrated it, or made it incremental | `gulliver_diff` old vs new, with the key | "identical" only when `identical` is true; else the sample keys and differing columns |
 | A model rebuilds all history every run | `gulliver_incremental` | strategy, generated SQL / dbt config, rows saved; then prove it with `gulliver_diff` |
 | Moving SQL to another engine | `gulliver_translate` (with a target connection to preflight it) | the SQL plus every warning |
-| Before trusting a table, or after a load | `gulliver_check` (unique, not null, accepted, range, fresh) | which checks failed; status `fail` means do not use the data as-is |
+| Before trusting a table, or after a load | `gulliver_check` (unique, not null, accepted, range, fresh) or configured name (`gulliver check --all`) | which checks failed; status `fail` means do not use the data as-is |
 | Pipeline broke, or a weekly health check | `gulliver_drift` with the models folder | removed/retyped columns and the models they break |
 | Before opening a PR that changes SQL models | `gulliver_review` (models folder, base ref) | new lint, breaking changes, downstream models, cost per month; `block` means do not merge |
 | "Which queries cost the most?" | `gulliver_top` | the top query shapes, the same-rows `fixed_sql` and the saving, labeled `exact` or `heuristic` |

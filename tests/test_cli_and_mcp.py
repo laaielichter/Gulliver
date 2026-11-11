@@ -100,6 +100,7 @@ def test_cli_translate_output_file(tmp_path, capsys):
     assert data["warnings"]  # still printed
     assert out.read_text(encoding="utf-8") == data["sql"]
 
+
 @pytest.mark.parametrize("extra, message", [
     (["--min-rows", "-5"], "min_rows"),
     (["--max-change", "-5"], "max_change"),
@@ -114,3 +115,61 @@ def test_check_refuses_invalid_thresholds(demo_db, capsys, extra, message):
 
 def test_check_accepts_zero_min_rows(demo_db):
     assert main(["--dsn", demo_db, "--json", "check", "events", "--not-null", "event_id", "--min-rows", "0"]) == 0
+
+
+def test_mcp_check_by_name_and_status_checks(demo_db, state, tmp_path, monkeypatch):
+    db_path = demo_db.replace("\\", "/")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "gulliver.toml").write_text(
+        f'''default_connection = "demo"
+[connections.demo]
+engine = "duckdb"
+path = "{db_path}"
+
+[checks.ev]
+target = "events"
+unique = ["event_id"]
+min_rows = 100
+'''
+    )
+    server = build_server()
+    # 1. Status lists configured checks
+    status_res = asyncio.run(server.call_tool("gulliver_status", {}))
+    st = status_res if isinstance(status_res, dict) else (
+        status_res.model_dump() if hasattr(status_res, "model_dump") else json.loads(str(status_res))
+    )
+    # Extract dict if inside content
+    data = st
+    if hasattr(status_res, "structuredContent") and status_res.structuredContent:
+        data = status_res.structuredContent
+    elif isinstance(st, dict) and "checks" in st:
+        data = st
+    elif hasattr(status_res, "content") and status_res.content:
+        data = json.loads(status_res.content[0].text)
+    assert "ev" in data.get("checks", [])
+
+    # 2. gulliver_check runs configured check by name
+    check_res = asyncio.run(server.call_tool("gulliver_check", {"name": "ev"}))
+    cr = check_res if isinstance(check_res, dict) else (
+        check_res.model_dump() if hasattr(check_res, "model_dump") else json.loads(str(check_res))
+    )
+    if hasattr(check_res, "structuredContent") and check_res.structuredContent:
+        cr_data = check_res.structuredContent
+    elif isinstance(cr, dict) and "status" in cr:
+        cr_data = cr
+    elif hasattr(check_res, "content") and check_res.content:
+        cr_data = json.loads(check_res.content[0].text)
+    assert cr_data.get("status") == "ok"
+    assert cr_data.get("target") == "events"
+
+    # 3. Unknown check name returns error
+    err_res = asyncio.run(server.call_tool("gulliver_check", {"name": "missing"}))
+    if hasattr(err_res, "structuredContent") and err_res.structuredContent:
+        err_data = err_res.structuredContent
+    elif isinstance(err_res, dict) and "status" in err_res:
+        err_data = err_res
+    elif hasattr(err_res, "content") and err_res.content:
+        err_data = json.loads(err_res.content[0].text)
+    assert err_data.get("status") == "error"
+    assert "Unknown configured check" in err_data.get("error", "")
+

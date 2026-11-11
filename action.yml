@@ -67,7 +67,7 @@ inputs:
     required: false
     default: ""
   package:
-    description: pip requirement to install instead of this action's own source, e.g. "gulliver-mcp==0.3.0".
+    description: pip requirement to install instead of this action's own source, e.g. "gulliver-mcp==0.4.0".
     required: false
     default: ""
   python-version:

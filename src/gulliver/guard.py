@@ -1174,6 +1174,11 @@ def inspect_sensitive(settings: Settings, connection: str | None = None, table: 
     from .engines import EngineError, dialect_for
     from .features import Blocked, _gated_run
 
+    if not table and not 1 <= limit <= 200:
+        return _error("--limit must be between 1 and 200.", "Use a limit from 1 to 200, for example --limit 25.")
+    if not 0 <= scan_rows <= 1000:
+        return _error("--scan must be between 0 and 1000.", "Use --scan 0 for no value scan, or up to --scan 1000.")
+
     try:
         with _engine(settings, connection) as (conn, engine):
             if table:
@@ -1184,7 +1189,7 @@ def inspect_sensitive(settings: Settings, connection: str | None = None, table: 
                 infos = [info]
             else:
                 infos = []
-                for t in engine.list_tables(limit=max(1, min(int(limit), 200))):
+                for t in engine.list_tables(limit=limit):
                     infos.append(t if t.columns else (engine.table_info(t.name) or t))
             dialect = dialect_for(conn.engine)
             tables_out: list[dict[str, Any]] = []
@@ -1197,10 +1202,10 @@ def inspect_sensitive(settings: Settings, connection: str | None = None, table: 
                     if text_cols:
                         sql = (exp.select(*[exp.column(c, quoted=True) for c in text_cols])
                                .from_(exp.to_table(info.name, dialect=dialect))
-                               .limit(max(1, min(int(scan_rows), 1000))).sql(dialect=dialect))
+                               .limit(scan_rows).sql(dialect=dialect))
                         try:
                             res = _gated_run(settings, conn.name, engine, sql, "sensitive-scan",
-                                             preview_rows=max(1, min(int(scan_rows), 1000)))
+                                             preview_rows=scan_rows)
                         except Blocked as blocked:
                             notes.append(f"{info.name}: value scan not run: {blocked.result.get('next_step')}")
                             res = None

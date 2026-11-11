@@ -33,12 +33,18 @@ An open-source MCP server and CLI that gives AI agents a dress rehearsal for SQL
 
 <p align="center">Works with <b>Claude Code</b>, <b>Codex</b>, <b>Cursor</b>, <b>Gemini CLI</b>, Claude Desktop, VS Code, Windsurf and any MCP client, on <b>DuckDB</b>, <b>Postgres</b>, <b>BigQuery</b> and <b>Snowflake</b>.</p>
 
-> **New in 0.3.0:** a read-only gate that also blocks side-effect functions, SQL hidden in strings and file
+> **New in 0.4.0:** data quality checks you define once in `gulliver.toml` and run in CI with
+> `gulliver check --all`, `gulliver lint --baseline` so an existing repo only sees new findings, `gulliver prune`,
+> `gulliver calibration`, `gulliver receipt --list`, column-level `gulliver diff`, lint rules GV016-GV018, and
+> refusal of bad budgets, unknown config keys and out-of-range flags instead of silently misreading them. See the
+> [changelog](https://github.com/laaielichter/Gulliver/blob/main/CHANGELOG.md).
+>
+> **In 0.3.0:** a read-only gate that also blocks side-effect functions, SQL hidden in strings and file
 > access, with DuckDB sandboxed in the engine. A result guard for personal data and prompt injection in rows. A
 > runaway guard for loops and per-agent budgets. Lint for CI (SARIF, pre-commit), `gulliver fix --verify`,
-> `gulliver top`, and `gulliver review` with a GitHub Action. **One breaking change:** DuckDB can no longer read
-> files outside the database folder and the current folder unless you allow them
-> ([details](#safety-model)). See the [changelog](https://github.com/laaielichter/Gulliver/blob/main/CHANGELOG.md).
+> `gulliver top`, and `gulliver review` with a GitHub Action. **One breaking change in 0.3.0:** DuckDB can no
+> longer read files outside the database folder and the current folder unless you allow them
+> ([details](#safety-model)).
 
 ![Gulliver rehearses a self-join on 1%, 3% and 10% of a 5-million-row table, predicts the size of the full result, then rewrites a date filter with the same rows](https://raw.githubusercontent.com/laaielichter/Gulliver/main/docs/demo.svg)
 
@@ -505,6 +511,32 @@ turn fewer rows into less money. Prove the result with `gulliver diff`.
 
 ### Check: data quality in one scan
 
+Define checks once in `gulliver.toml` under `[checks.<name>]`, and run them by name or run all configured targets at once:
+
+```toml
+[checks.events]
+target = "events"            # table or SELECT; defaults to the section name
+connection = "local"         # optional
+where = "ts >= current_date - 7"
+unique = ["event_id"]        # composite key: ["event_id", ["user_id", "session_id"]]
+not_null = ["user_id", "amount"]
+accepted = { event_type = ["view", "click", "cart", "buy"] }
+range = { amount = [0, 10000] }
+fresh = { ts = "24h" }
+min_rows = 1000
+max_change_pct = 30
+```
+
+```bash
+gulliver check events                       # run configured checks for 'events'
+gulliver check events --samples 5           # flags add to or override configured checks
+gulliver check --all                        # run all configured sections; exit code 4 if any fails
+```
+
+`--all` runs each configured check as defined; it accepts `-c`/`--connection` and `--samples`, but takes no check flags (`--where`, `--unique`, etc.).
+
+Or pass checks directly on the command line:
+
 ```bash
 gulliver check events --unique event_id --not-null user_id,amount \
   --accepted "event_type=view|click|cart|buy" --range "amount=0:10000" --fresh ts=24h --max-change 30
@@ -767,7 +799,7 @@ The read-only gate uses its own codes. A `GS` finding is always a `block` with t
 
 ```
 gulliver status                       connections, budget, spend today (and your own, under caller)
-gulliver inspect [TABLE] [--sensitive] [--scan N]   biggest tables, one table's columns, or sensitive columns
+gulliver inspect [TABLE] [--limit 25] [--sensitive] [--scan N]   limit: 1-200 (ignored with TABLE); scan: 0-1000, 0 disables scanning
 gulliver lint SQL [--dialect D]       scale lint of one query
 gulliver lint PATH... [--format text|json|sarif|github|gitlab|junit] [--fail-on error|warn|info|never]
                       [--exclude GLOB] [--warn-unused-ignores] [--metadata] [-o PATH]   files and folders (CI)

@@ -1,6 +1,6 @@
 {
   "name": "gulliver-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Test on tiny data before you run on giant data. npm launcher for the Gulliver MCP server and CLI (runs the Python package gulliver-mcp via uv).",
   "license": "MIT",
   "author": "laaielichter",

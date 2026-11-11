@@ -16,8 +16,11 @@ import math
 import os
 from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
+
+if TYPE_CHECKING:
+    from .checks import CheckConfig
 
 try:  # Python 3.11+
     import tomllib  # type: ignore[import-not-found]
@@ -31,7 +34,7 @@ class ConfigError(ValueError):
 
 # top-level keys of gulliver.toml; [lint] is read in lint_files.py and [review] in review.py
 KNOWN_TOP_LEVEL = frozenset(
-    {"connections", "default_connection", "budget", "approval", "state_dir", "lint", "review"}
+    {"connections", "default_connection", "budget", "approval", "state_dir", "lint", "review", "checks"}
 )
 
 
@@ -164,6 +167,7 @@ class Settings:
     budget: Budget
     state_dir: Path
     approval_channel: str = "cli"   # [approval] channel: "cli" (default) or "elicitation" (MCP client asks the human)
+    checks: dict[str, CheckConfig] = field(default_factory=dict)
 
     def connection(self, name: str | None = None) -> Connection:
         key = name or self.default_connection
@@ -281,8 +285,16 @@ def load_settings(
     budget = Budget.from_mapping(budget_data)
 
     state_dir = Path(os.environ.get("GULLIVER_HOME") or data.get("state_dir") or (Path.cwd() / ".gulliver"))
+    checks: dict[str, Any] = {}
+    for check_name, check_data in (data.get("checks") or {}).items():
+        if not isinstance(check_data, dict):
+            raise ConfigError(f"[checks.{check_name}] must be a table")
+        from .checks import parse_check_config
+
+        checks[check_name] = parse_check_config(str(check_name), check_data)
+
     return Settings(connections=connections, default_connection=default, budget=budget, state_dir=state_dir,
-                    approval_channel=_approval_channel(data.get("approval") or {}))
+                    approval_channel=_approval_channel(data.get("approval") or {}), checks=checks)
 
 
 APPROVAL_CHANNELS = ("cli", "elicitation")

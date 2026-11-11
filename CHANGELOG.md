@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2026-11-11
+
+Data checks you define once in `gulliver.toml` and run in CI, a lint baseline for existing repos, rehearsal
+calibration, receipt listing and pruning, three new lint rules, and stricter refusal of bad budgets, config keys
+and flags. Thanks to 14 outside contributors.
 
 ### Added
+- Refuse inspect limits outside 1-200 and sensitive value scans outside 0-1000 instead of silently clamping them (#97). A named table still ignores the listing limit.
+- Data quality checks in `gulliver.toml` under `[checks.<name>]`: run them by name with `gulliver check NAME` or run all configured targets in CI with `gulliver check --all` (exits 4 if any check fails) (#80).
 - `gulliver rules --format markdown|json` prints a generated rule table (markdown) or the same JSON as `--json`; the README Scale lint rules table is generated from it (#18).
 - `gulliver spend -o/--output PATH` and `gulliver top -o/--output PATH` write the report as UTF-8 and print a one-line confirmation (#19).
 - Opt-in `check --samples N` / MCP `samples` (0-20) reports guarded offending values and row counts for failed unique, accepted-values and range checks. Each extra query is budget-gated and logged; blocked or failed samples leave the check result intact (#48, #49).
@@ -23,10 +29,12 @@
 - @shaw778 for the derived `gulliver_lint` rule range (#41), the npm, PyPI and Hugging Face token shapes (#58), lint rule GV017 (#59), column-level `gulliver diff` (#69) and its follow-up test and note fix (#72).
 - @ariktadas144 for the non-English prompt-injection signal (#62).
 - @Doomguy-BFG9000 for escaping `|` and `~` in composite keys and diffs (#53).
-- @17302513901yh-lang for refusing unknown lint rule ids (#54) and lint rule GV018 (#66), and @ariktadas144 for the careful review of it.
+- @17302513901yh-lang for refusing unknown lint rule ids (#54), the GV002 fix for aggregates inside subqueries (#64) and lint rule GV018 (#66), and @ariktadas144 for the careful review of it.
 - @Muhtasim-Munif-Fahim for `gulliver rules --format markdown|json` and the generated README rule table (#68), and `spend -o` / `top -o` (#67).
 - @ariktadas144 for `gulliver lint --baseline`, so existing repos only see new findings (#90).
-- @shaw778 for `gulliver prune`, which cleans up receipts without breaking the audit chain (#88).
+- @shaw778 for `gulliver prune`, which cleans up receipts without breaking the audit chain (#88), and for checks defined in `gulliver.toml` with `gulliver check NAME` and `check --all` (#105).
+- @yinbowen-dc for refusing out-of-range `inspect` limits and sensitive scan sizes (#99).
+- @hamid-digitalmarketer for refusing `spend`, `calibration` and `top` windows and limits below one (#95).
 - @Abhishekpandey123-git for `gulliver receipt --list` (#60).
 - @HarshRajSinghania for the read-only Postgres role docs (#8), which shaped the section that shipped in 0.3.0.
 - @YinL-k for lint rule GV016 (#23).
@@ -43,6 +51,7 @@
 - The `gulliver_lint` tool description builds its rule range from `RULES`; it said GV001-GV012 while the linter had grown past that (#37).
 - A lint rule id that no rule uses (`disable = ["GV099"]`, a typo for GV009) is refused with "unknown rule", the way unknown names already were. Before, it loaded and turned nothing off (#54).
 - Composite uniqueness checks and data diffs escape `~` and `|` in each text part before joining, so embedded separators no longer make distinct keys or rows compare equal (#36).
+- GV002 no longer treats an aggregate inside a scalar subquery as if the outer query aggregates, so `SELECT id, (SELECT COUNT(*) ...) FROM users` without a LIMIT is reported again. A SELECT without FROM returns one row and is skipped (#64).
 - GV001 no longer warns on `SELECT *` inside an `EXISTS` or `NOT EXISTS` subquery: it is a semi-join, so no engine reads those columns. A `SELECT *` elsewhere in the same query is still reported (#50).
 - Budget limits that are `nan`, infinite or negative are refused at load time with an error that names the key, from `gulliver.toml` and from `GULLIVER_*` variables. Before, `max_query_usd = nan` silently switched the hard stop off (#40).
 - `gulliver_drift` is no longer annotated read-only. It saves a local snapshot file (on the first call, and with `save=true`), so it now reports `readOnlyHint: false`, `destructiveHint: false`. It still only reads the database. Reported by Glama's tool scoring.

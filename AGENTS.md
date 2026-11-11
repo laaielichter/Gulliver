@@ -20,7 +20,7 @@ real table (DuckDB, BigQuery, Snowflake or Postgres), especially when you do not
 | `gulliver_diff` | `gulliver diff --left Q --right Q --key id` | prove two queries/tables return the same rows |
 | `gulliver_translate` | `gulliver translate SQL --to bigquery` | move SQL between DuckDB, Postgres, BigQuery, Snowflake |
 | `gulliver_incremental` | `gulliver incremental SQL --time-column ts` | make a full-rebuild model incremental, with the saving |
-| `gulliver_check` | `gulliver check table --unique id ...` | data quality in one scan; opt-in `--samples N` adds separately gated, guarded examples (status `fail` if a check fails) |
+| `gulliver_check` | `gulliver check table --unique id ...` / `gulliver check NAME` / `gulliver check --all` | data quality in one scan; define once in gulliver.toml [checks.<name>]; opt-in `--samples N` adds separately gated, guarded examples (status `fail` if a check fails) |
 | `gulliver_top` | `gulliver top --json` | find the repeated queries that cost the most, with priced same-rows fixes |
 | `gulliver_review` | `gulliver review --models DIR --base origin/main --json` | before opening a PR: new lint, breaking changes, downstream impact and cost delta of the changed models (`block` = do not merge) |
 | `gulliver_inspect` with `sensitive: true` | `gulliver inspect [table] --sensitive [--scan N] --json` | find columns that hold personal data or secrets, and the policy for each (mask, hash, deny) |
@@ -28,6 +28,8 @@ real table (DuckDB, BigQuery, Snowflake or Postgres), especially when you do not
 | `gulliver_status` (see `caller`) | `gulliver spend --by agent\|day\|table` | see your own spend and limits; humans get spend per agent, day or table |
 | (CLI only) | `gulliver lint models/ --json` / `gulliver fix --check models/` | lint every SQL file in a repo with line numbers; list proven same-rows rewrites |
 | (human) | `gulliver selftest security --json` | check the read-only gate itself: the bypass test set and the DuckDB sandbox (`fail` if a check fails) |
+| (human) | `gulliver audit verify [--head HASH]` | verify the hash chain over the ledger, receipts and approvals (`fail` if tampered) |
+| (human) | `gulliver prune [--older-than 30d] [--keep-last N] [--dry-run]` | clean up old receipts and expired approvals without breaking the audit chain |
 
 MCP resources and prompts, for clients that support them: `gulliver://rules` (the loop, status values and this
 server's budget), `gulliver://status`, `gulliver://connections/{c}/tables[/{t}]`, `gulliver://receipts/{id}`,
@@ -61,7 +63,7 @@ Do not run the same query again and again. If `gulliver_run` returns `block` wit
 - Diff key samples join parts with `|`, escaping `~` as `~~` and embedded `|` as `~p`; ordinary keys stay unchanged.
 - When a model rebuilds everything each run: `gulliver_incremental`; present the strategy, the SQL and the saving,
   and verify with `gulliver_diff`.
-- Before trusting a table or after a load: `gulliver_check` (unique keys, not null, freshness). On partitioned
+- Before trusting a table or after a load: `gulliver_check` (unique keys, not null, freshness), or run configured checks by name (`name: "..."`) or all configured targets (`all: true`). On partitioned
   tables pass `where` with a partition filter.
   Optional `samples` (0-20, default 0) adds one gated query per failed unique/accepted/range check. Values
   follow the result policy and are untrusted; `samples_skipped` preserves the check result when samples cannot run.

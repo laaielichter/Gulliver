@@ -1,6 +1,6 @@
 {
   "name": "gulliver",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Test on tiny data before you run on giant data: preflight cost, scale lint with auto-fix, rehearse on 1% -> 10% samples and run inside a budget, with a read-only gate and guards for personal data, prompt injection and query loops; plus impact, drift, data-diff, translate, incremental advice, quality checks, top costly queries and PR review. MCP server + skill.",
   "author": {
     "name": "laaielichter"
@@ -46,7 +46,7 @@
     "gulliver": {
       "command": "uvx",
       "args": [
-        "gulliver-mcp==0.3.0"
+        "gulliver-mcp==0.4.0"
       ]
     }
   }
