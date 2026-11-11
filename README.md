@@ -805,7 +805,7 @@ gulliver lint PATH... [--format text|json|sarif|github|gitlab|junit] [--fail-on 
                       [--exclude GLOB] [--warn-unused-ignores] [--metadata] [-o PATH]   files and folders (CI)
                       [--baseline FILE] [--write-baseline [FILE]]   report only findings not in the baseline
 gulliver rules [--format text|markdown|json]   every lint rule: id, name, severity, autofix
-gulliver fix SQL [--dialect D] [--mode safe|all] [--limit N] [-o PATH]   rewrite SQL, say what changes
+gulliver fix SQL [--dialect D] [--mode safe|all] [--limit N] [-o PATH]   rewrite SQL, say what changes; limit >= 1 in all mode, ignored in safe mode
 gulliver fix SQL --verify [--cases 200] [--seed 0] [--timezone TZ]      test every rewrite on generated data
 gulliver fix --check | --write PATH...                                  same-rows rewrites in files (CI)
 gulliver preflight SQL                estimate + lint + gate, no execution

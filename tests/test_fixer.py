@@ -8,7 +8,7 @@ import json
 import duckdb
 import pytest
 
-from gulliver import core
+from gulliver import core, fixer
 from gulliver.cli import main
 from gulliver.fixer import fix, rewrite, safe_date_type
 from gulliver.mcp_server import build_server
@@ -240,6 +240,28 @@ def test_not_exists_matches_not_in_without_nulls():
 
 
 # -- integration --------------------------------------------------------------------------
+@pytest.mark.parametrize("limit", [-5, 0])
+def test_invalid_limit_is_refused_before_rewriting(monkeypatch, limit):
+    def forbidden_rewrite(*args, **kwargs):
+        pytest.fail("an invalid limit must be rejected before rewriting")
+
+    monkeypatch.setattr(fixer, "rewrite", forbidden_rewrite)
+    result = fix(None, "SELECT * FROM events", mode="all", limit=limit)
+    assert result["status"] == "error"
+    assert str(limit) in result["error"]
+    assert "limit" in result["error"]
+    assert result["next_step"]
+
+
+def test_valid_or_omitted_limits_and_safe_mode_keep_their_behavior():
+    sql = "SELECT * FROM events"
+    assert "LIMIT 1" in fix(None, sql, mode="all", limit=1)["fixed_sql"]
+    assert "LIMIT 1000" in fix(None, sql, mode="all")["fixed_sql"]
+    safe = fix(None, sql, mode="safe")
+    assert fix(None, sql, mode="safe", limit=0) == safe
+    assert fix(None, sql, mode="safe", limit=-5) == safe
+
+
 def test_fix_with_connection_reports_estimates(settings):
     out = fix(settings, "select event_type, count(*) from events where date(ts) = '2025-01-02' group by 1")
     assert out["status"] == "ok" and out["same_result"]

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `fix --mode all` and the Python `fix()` function reject zero and negative limits with a clean error instead of building invalid SQL or silently replacing zero. Safe mode still ignores the limit (#118).
+
 ## 0.4.0 - 2026-11-11
 
 Data checks you define once in `gulliver.toml` and run in CI, a lint baseline for existing repos, rehearsal
