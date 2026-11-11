@@ -172,4 +172,3 @@ min_rows = 100
         err_data = json.loads(err_res.content[0].text)
     assert err_data.get("status") == "error"
     assert "Unknown configured check" in err_data.get("error", "")
-
