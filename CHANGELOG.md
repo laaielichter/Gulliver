@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `check` with no quality-check options records row-count history but explicitly says no checks were requested (`checks_requested: 0`), rather than claiming all checks passed (#130).
+
 ## 0.4.0 - 2026-11-11
 
 Data checks you define once in `gulliver.toml` and run in CI, a lint baseline for existing repos, rehearsal

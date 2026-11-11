@@ -61,6 +61,13 @@ def test_cli_receipt_output_file(demo_db, state, tmp_path, capsys):
     assert json.loads(js.read_text(encoding="utf-8"))["receipt_id"].startswith("gv-")
 
 
+def test_cli_empty_check_explains_no_validation(demo_db, state, capsys):
+    assert main(["--dsn", demo_db, "check", "users", "--json"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result.get("checks_requested") == 0
+    assert "No checks were requested" in result["next_step"]
+
+
 def test_cli_receipt_list_order_limit_and_status(demo_db, state, capsys):
     assert main(["--dsn", demo_db, "preflight", "select count(*) from events"]) == 0
     capsys.readouterr()

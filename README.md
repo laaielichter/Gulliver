@@ -544,7 +544,7 @@ gulliver check events --unique event_id --not-null user_id,amount \
 
 All checks become one aggregate query (one scan), budget-gated like any other. Status `fail` (exit code 4)
 when a check fails, so it drops into CI or an orchestrator. Row-count history is kept per target, so
-`--max-change` catches a load that suddenly lost half its rows.
+`--max-change` catches a load that suddenly lost half its rows. When a table has no requested checks, its row count is still recorded for that history, but `checks_requested: 0` and `next_step` explicitly say no data-quality checks were requested; add at least one check option to validate the data.
 
 Add `--samples N` (1-20; MCP `samples`) to see the most frequent offending values and their row counts for
 failed unique, accepted-values and range checks. A composite key shows every key column; single-column

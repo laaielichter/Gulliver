@@ -565,6 +565,10 @@ def check(settings: Settings, target: str, connection: str | None = None, where:
                        f"{o['check']}" + (f" on {o['column']}" if o.get("column") else "") for o in failed)
                    + ". Fix the data or the pipeline before using it."),
     )
+    if spec.is_empty():
+        result.update(checks_requested=0, next_step=(
+            "No checks were requested, so only the row count was recorded. "
+            "Add --unique, --not-null, --accepted, --range, --fresh, --min-rows or --max-change."))
     if not samples and any(o["check"] in ("unique", "accepted_values", "range") for o in failed):
         result["next_step"] += " Use --samples N (MCP samples, 1-20) for budget-checked, guarded examples."
     if any("samples_guard" in o for o in outcomes):
