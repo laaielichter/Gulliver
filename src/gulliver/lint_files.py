@@ -40,7 +40,7 @@ from sqlglot.tokens import Token, TokenType
 from .config import ConfigError, find_config_file
 from .lineage import BLOCK_RE, COMMENT_RE, CONFIG_RE, EXPR_RE, REF_RE, SOURCE_RE, THIS_RE
 from .lint import RULES, SEVERITY_ORDER, Finding, lint
-from .sqlsafety import classify
+from .sqlsafety import SYNTAX_ERROR_NEXT_STEP, classify, parse_error_reason
 
 try:  # Python 3.11+
     import tomllib  # type: ignore[import-not-found]
@@ -775,9 +775,9 @@ def lint_file(file: Path, dialect: str = "duckdb", config: LintConfig | None = N
     try:
         chunks = split_statements(rendered.text, dialect)
     except SqlglotError as exc:
-        first = str(exc).splitlines()[0] if str(exc) else "tokenizer error"
-        add("GV900", "warn", f"Could not read the SQL for dialect '{dialect}': {first}. Nothing in this file was "
-            "checked.", "Check the dialect (--dialect or [lint] dialect), or fix the syntax.", 0, 0, 0)
+        reason = parse_error_reason(exc, rendered.text, dialect)
+        add("GV900", "warn", f"{reason} Nothing in this file was checked.", SYNTAX_ERROR_NEXT_STEP,
+            len(rendered.text), len(rendered.text), 0)
         chunks = []
     statement_lines: dict[int, int] = {}
     for chunk in chunks:
@@ -794,7 +794,7 @@ def lint_file(file: Path, dialect: str = "duckdb", config: LintConfig | None = N
         if statement is None or statement.kind == "block" or statement.select is None:
             if reason.startswith("Could not parse"):
                 add("GV900", "warn", f"{reason.rstrip('.')}. This statement was not checked.",
-                    "Check the dialect (--dialect or [lint] dialect), or the Jinja in this model.",
+                    SYNTAX_ERROR_NEXT_STEP,
                     chunk.start, chunk.tokens[0].end + 1, chunk.index)
             else:
                 line = statement_lines[chunk.index]

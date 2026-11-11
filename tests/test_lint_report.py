@@ -635,3 +635,17 @@ def test_write_baseline_without_any_path_is_refused(state, tmp_path, capsys):
 def test_lint_baseline_key_must_be_a_path():
     with pytest.raises(ConfigError):
         lint_config_from_mapping({"baseline": 3})
+
+
+@pytest.mark.parametrize("sql", ["SELECT 1 FROM", "SELECT a b c FROM t", "SELECT 'abc"])
+def test_file_syntax_errors_have_readable_messages(tmp_path, sql):
+    result = lint_file(_write(tmp_path / "bad.sql", sql))
+    finding, = [f for f in result.findings if f.rule == "GV900"]
+    assert "line 1, column " in finding.message
+    assert "<Token" not in finding.message and "TokenType" not in finding.message
+    assert finding.fix == (
+        "Fix the syntax error and try again. If the SQL is for another engine, set --dialect."
+    )
+    if sql == "SELECT 'abc":
+        assert (finding.line, finding.col) == (1, len(sql) + 1)
+        assert "end of input" in finding.message

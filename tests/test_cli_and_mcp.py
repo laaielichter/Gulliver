@@ -1,6 +1,8 @@
 import asyncio
 import json
 
+import pytest
+
 from gulliver.cli import main
 from gulliver.mcp_server import build_server, export_tools
 
@@ -98,6 +100,34 @@ def test_cli_translate_output_file(tmp_path, capsys):
     assert data["warnings"]  # still printed
     assert out.read_text(encoding="utf-8") == data["sql"]
 
+
+@pytest.mark.parametrize("command", ["lint", "preflight", "rehearse", "run"])
+@pytest.mark.parametrize("sql", ["SELECT 1 FROM", "SELECT a b c FROM t", "SELECT 'abc"])
+def test_cli_syntax_errors_stay_blocked_with_actionable_advice(command, sql, demo_db, state, capsys):
+    assert main(["--dsn", demo_db, command, "--json", sql]) == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "block"
+    assert result["next_step"] == (
+        "Fix the syntax error and try again. If the SQL is for another engine, set --dialect."
+    )
+    reason = result["statement"]["reason"]
+    assert "line 1, column " in reason
+    assert "<Token" not in reason and "TokenType" not in reason
+
+
+@pytest.mark.parametrize("sql", ["DROP TABLE t", "SELECT 1; SELECT 2"])
+def test_cli_non_syntax_blocks_keep_existing_advice(sql, demo_db, state, capsys):
+    for command in ("lint", "preflight", "rehearse", "run"):
+        assert main(["--dsn", demo_db, command, "--json", sql]) == 2
+        result = json.loads(capsys.readouterr().out)
+        if command == "lint":
+            assert result["next_step"] == "Send a single SELECT (or CREATE/INSERT ... SELECT)."
+        elif command == "rehearse":
+            assert result["next_step"] == result["statement"]["reason"]
+        else:
+            assert result["next_step"] == (
+                "Rewrite it as one SELECT (or CREATE/INSERT ... SELECT). " + result["statement"]["reason"]
+            )
 
 
 def test_mcp_check_by_name_and_status_checks(demo_db, state, tmp_path, monkeypatch):

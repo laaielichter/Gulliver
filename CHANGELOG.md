@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- SQL syntax errors show readable parser details and line/column positions instead of internal token dumps. Syntax-specific retry advice is distinct from statement restrictions; tokenizer failures use an explicit end-of-input fallback (#128).
+
 ## 0.4.0 - 2026-11-11
 
 Data checks you define once in `gulliver.toml` and run in CI, a lint baseline for existing repos, rehearsal

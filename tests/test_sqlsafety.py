@@ -1,3 +1,5 @@
+import pytest
+
 from gulliver.sqlsafety import classify, sql_fingerprint
 
 
@@ -57,3 +59,29 @@ def test_sql_that_cannot_be_tokenized_is_blocked_not_raised():
                          ("SELECT g FROM generate_series($3,$4) g", "postgres"), ("SELECT 'oops AS a", "duckdb")):
         st = classify(sql, dialect)
         assert st.kind == "block" and "Could not parse" in st.reason
+
+
+@pytest.mark.parametrize("dialect", ["duckdb", "postgres", "bigquery", "snowflake"])
+@pytest.mark.parametrize("sql, location, description", [
+    ("SELECT 1 FROM", 'line 1, column 13, near "FROM"', "Expected table name."),
+    ("SELECT FROM WHERE (", 'line 1, column 17, near "WHERE"', "Expected table name."),
+    ("SELECT a b c FROM t", 'line 1, column 12, near "c"', "Invalid expression / Unexpected token."),
+    ("\n  SELECT a b c FROM t", 'line 2, column 14, near "c"', "Invalid expression / Unexpected token."),
+])
+def test_syntax_error_message_uses_structured_details(sql, location, description, dialect):
+    statement = classify(sql, dialect)
+    assert statement.kind == "block"
+    assert statement.reason == f"Could not parse SQL for dialect '{dialect}' at {location}: {description}"
+    assert "<Token" not in statement.reason and "TokenType" not in statement.reason
+
+
+@pytest.mark.parametrize("sql", ["SELECT 'abc", "SELECT /* unclosed", "\nSELECT 'café\nhello"])
+def test_tokenizer_failure_has_an_explicit_end_of_input_fallback(sql):
+    statement = classify(sql)
+    line = sql.count("\n") + 1
+    column = len(sql.rsplit("\n", 1)[-1]) + 1
+    assert statement.kind == "block"
+    assert statement.reason == (
+        f"Could not parse SQL for dialect 'duckdb' at line {line}, column {column} (end of input): "
+        "Could not tokenize SQL; check for an unterminated quote or comment."
+    )

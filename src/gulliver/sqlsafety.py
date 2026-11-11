@@ -15,11 +15,13 @@ the allowed folders is also refused, with a code GS001-GS004 (see security.py).
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 from dataclasses import dataclass, field
 
 import sqlglot
 from sqlglot import exp
-from sqlglot.errors import SqlglotError
+from sqlglot.errors import ParseError, SqlglotError, TokenError
 
 from .security import SecurityPolicy
 from .security import check as security_check
@@ -28,6 +30,7 @@ READ_ROOTS = (exp.Select, exp.Union, exp.Intersect, exp.Except, exp.Subquery)
 # Statements that change data or schema. Inside another statement (a CTE such as WITH d AS (DELETE ... RETURNING *))
 # they would run as a side effect of a read or of an INSERT/CREATE ... SELECT, so they are refused there.
 DATA_CHANGING = (exp.Insert, exp.Delete, exp.Update, exp.Create, exp.Drop, exp.Merge)
+SYNTAX_ERROR_NEXT_STEP = "Fix the syntax error and try again. If the SQL is for another engine, set --dialect."
 
 
 @dataclass
@@ -41,6 +44,7 @@ class Statement:
     target: str | None = None              # write target table
     tables: list[str] = field(default_factory=list)
     code: str = ""                         # GS001-GS004 when a security rule refused it
+    parse_error: bool = False              # internal routing for syntax-specific advice
 
     @property
     def sql_hash(self) -> str:
@@ -66,6 +70,32 @@ def sql_fingerprint(sql: str) -> str:
 
 def _strip_trailing(sql: str) -> str:
     return sql.strip().rstrip(";").strip()
+
+
+def parse_error_reason(exc: SqlglotError, sql: str, dialect: str) -> str:
+    """Format parser details without internal token dumps or ANSI-highlighted exception text.
+
+    TokenError has no structured position. Report the end of input explicitly as a fallback,
+    rather than guessing a quote's opening position from dialect-specific tokenization rules.
+    """
+    details = exc.errors[0] if isinstance(exc, ParseError) and exc.errors else {}
+    line, column = details.get("line"), details.get("col")
+    if isinstance(line, int) and line > 0 and isinstance(column, int) and column > 0:
+        location = f"line {line}, column {column}"
+        if highlight := details.get("highlight"):
+            location += f", near {json.dumps(highlight, ensure_ascii=False)}"
+    else:
+        line = sql.count("\n") + 1
+        column = len(sql.rsplit("\n", 1)[-1]) + 1
+        location = f"line {line}, column {column} (end of input)"
+    if isinstance(exc, TokenError):
+        description = "Could not tokenize SQL; check for an unterminated quote or comment"
+    else:
+        description = str(details.get("description") or "Syntax error").split("<Token", 1)[0].strip()
+        description = re.sub(r"\s+but got$", "", description)
+        if not description or "TokenType" in description:
+            description = "Unexpected token"
+    return f"Could not parse SQL for dialect '{dialect}' at {location}: {description.rstrip('.')}."
 
 
 def base_tables(tree: exp.Expression, dialect: str) -> list[exp.Table]:
@@ -110,10 +140,10 @@ def _classify(sql: str, dialect: str) -> Statement:
     if not text:
         return Statement(sql, dialect, "block", reason="Empty SQL.")
     try:
-        trees = [t for t in sqlglot.parse(text, read=dialect) if t is not None]
+        # Keep leading whitespace so parser positions refer to the SQL supplied by the caller.
+        trees = [t for t in sqlglot.parse(sql, read=dialect) if t is not None]
     except SqlglotError as exc:   # ParseError and TokenError (e.g. Postgres `IN ($1,$2)`, an open quote)
-        first = str(exc).splitlines()[0] if str(exc) else "parse error"
-        return Statement(sql, dialect, "block", reason=f"Could not parse SQL for dialect '{dialect}': {first}")
+        return Statement(sql, dialect, "block", reason=parse_error_reason(exc, sql, dialect), parse_error=True)
     if len(trees) != 1:
         return Statement(sql, dialect, "block", reason="Send exactly one statement at a time.")
     tree = trees[0]

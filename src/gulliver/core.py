@@ -19,7 +19,7 @@ from .extrapolate import BANDS, Fit, fit_power_law, overall_confidence
 from .lint import Finding, _has_aggregation, _outer_select, lint, summarize
 from .sampling import sample_query, sampling_tree
 from .security import policy_for
-from .sqlsafety import Statement, base_tables, classify, table_ref
+from .sqlsafety import SYNTAX_ERROR_NEXT_STEP, Statement, base_tables, classify, table_ref
 from .store import Store
 
 DEFAULT_FRACTIONS = (0.01, 0.03, 0.1)
@@ -145,7 +145,8 @@ def lint_sql(sql: str, dialect: str = "duckdb") -> dict[str, Any]:
     statement = classify(sql, dialect)
     if statement.kind == "block" or statement.select is None:
         return {"status": "block", "statement": statement.public(), "lint": [],
-                "next_step": "Send a single SELECT (or CREATE/INSERT ... SELECT)."}
+                "next_step": SYNTAX_ERROR_NEXT_STEP if statement.parse_error else
+                "Send a single SELECT (or CREATE/INSERT ... SELECT)."}
     findings = lint(statement.select, dialect)
     counts = summarize(findings)
     state = "block" if counts["error"] else ("warn" if counts["warn"] else "ok")
@@ -230,7 +231,7 @@ def _preflight_core(settings: Settings, sql: str, connection: str | None) -> dic
     }
     if statement.kind == "block":
         base.update(status="block", gate={"status": "block", "blocks": [statement.reason]},
-                    next_step=statement.reason if statement.code else
+                    next_step=SYNTAX_ERROR_NEXT_STEP if statement.parse_error else statement.reason if statement.code else
                     "Rewrite it as one SELECT (or CREATE/INSERT ... SELECT). " + statement.reason)
         return base
 
@@ -353,7 +354,7 @@ def _rehearse(settings: Settings, sql: str, connection: str | None, fractions: l
         "sql_hash": statement.sql_hash, "statement": statement.public(),
     }
     if statement.kind == "block":
-        result.update(status="block", next_step=statement.reason)
+        result.update(status="block", next_step=SYNTAX_ERROR_NEXT_STEP if statement.parse_error else statement.reason)
         return result
     if sample not in ("largest", "all"):
         return _error("sample must be 'largest' or 'all'")

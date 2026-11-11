@@ -244,6 +244,21 @@ join named this way, or a fact-to-dimension lookup where repeating the value is 
 (`sum(p.price) from order_items i join products p on p.id = i.product_id`), is flagged too; ignore it there
 with `-- gulliver: ignore GV015`.
 
+## SQL syntax errors
+
+Syntax errors include a line and column, the highlighted token when available, and a short
+parser description. For example, `gulliver lint "SELECT a b c FROM t" --json` reports:
+
+```text
+Could not parse SQL for dialect 'duckdb' at line 1, column 12, near "c": Invalid expression / Unexpected token.
+```
+
+The query stays blocked (exit code `2`). The next step is to fix the syntax or select the correct
+engine with `--dialect`; restrictions on multiple statements and non-SELECT statements are unchanged.
+If tokenization fails, such as an unterminated quote or comment, the message explicitly uses the
+end of input as a fallback location, not the opening quote's position. File lint reports these errors
+as GV900 and keeps its configured severity and exit-code policy.
+
 ## Limits
 
 - Files mode needs no database. GV004 (missing partition filter) and the same-rows fixes need metadata, so

@@ -82,6 +82,9 @@ and returns a counterexample when rows differ; a test is not a proof, so labels 
 | GV015 fan-trap | aggregate the many side in a subquery first, then join |
 | GV016 order-by-random | for random row sampling, consider TABLESAMPLE / USING SAMPLE; check engine semantics |
 
+Syntax failures stay blocked. Read the line/column in `statement.reason`, fix the syntax or choose the
+correct `--dialect`, then retry. Tokenizer failures explicitly mark their location as end-of-input fallback.
+
 ## Reading the numbers honestly
 
 - `estimate.accuracy`: `exact` (BigQuery dry run), `upper_bound` (Snowflake partitions), `heuristic` (DuckDB,

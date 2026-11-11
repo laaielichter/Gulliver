@@ -724,6 +724,10 @@ Fixes are applied as small text edits (comments, line endings and Jinja stay) an
 edited statement re-parses to exactly the rewritten tree. Details:
 [docs/features/lint-ci.md](https://github.com/laaielichter/Gulliver/blob/main/docs/features/lint-ci.md).
 
+SQL syntax errors include readable line/column diagnostics and syntax-specific retry advice.
+Tokenizer failures use an explicitly labeled end-of-input fallback. See the
+[syntax-error guide](docs/features/lint-ci.md#sql-syntax-errors).
+
 ### `gulliver review` and the GitHub Action
 
 ```bash
