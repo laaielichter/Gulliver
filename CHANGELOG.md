@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `check` now refuses a negative `--min-rows` and a negative, NaN or infinite `--max-change` instead of silently passing or failing (#106).
+
 ## 0.4.0 - 2026-11-11
 
 Data checks you define once in `gulliver.toml` and run in CI, a lint baseline for existing repos, rehearsal
@@ -58,7 +63,6 @@ and flags. Thanks to 14 outside contributors.
 - New test `tests/test_tool_annotations.py`: read-only tools may not describe writes.
 - `gulliver_check` is no longer annotated read-only either: it stores the row count locally for the next `max_change_pct` comparison.
 - Receipt ids now carry 64 random bits instead of 32. With 32 bits, two ids made in the same second collided about 1 in 300 times over 5000 ids (seen as a flaky CI test on macOS). The prompt-injection guard recognizes the longer ids.
-- `check` now refuses a negative `--min-rows` and a negative, NaN or infinite `--max-change` instead of silently passing or failing (#106).
 
 ### Changed
 - Lint rule GV013 `leading-wildcard-like` also flags `LIKE` / `ILIKE` patterns that start with the `_` wildcard; an escaped `\_` stays unflagged (#78, #82).
