@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
+from .core import UsageError
 from .engines.base import Engine
 from .incremental import parse_period
 
@@ -311,12 +312,14 @@ def parse_spec(unique: list[str] | None = None, not_null: list[str] | None = Non
     for a in accepted or []:
         col, _, values = a.partition("=")
         if not values:
-            raise ValueError(f"accepted needs col=a|b|c, got '{a}'")
+            raise UsageError(f"--accepted needs col=a|b|c, got '{a}'",
+                             "Pass --accepted col=a|b|c, e.g. --accepted status=new|paid.")
         spec.accepted[col.strip()] = [v for v in values.split("|")]
     for r in ranges or []:
         col, sep, bounds = r.partition("=")
         if not sep or ":" not in bounds:
-            raise ValueError(f"range needs col=min:max (either side may be empty), got '{r}'")
+            raise UsageError(f"--range needs col=min:max (either side may be empty), got '{r}'",
+                             "Pass --range col=min:max, e.g. --range amount=0:1000.")
         column = col.strip()
         lo_text, _, hi_text = bounds.partition(":")
         lo = _range_bound(column, lo_text) if lo_text.strip() else None
@@ -325,8 +328,14 @@ def parse_spec(unique: list[str] | None = None, not_null: list[str] | None = Non
             raise ValueError(f"range for {column!r} has min {lo_text.strip()} > max {hi_text.strip()}")
         spec.ranges[column] = (lo, hi)
     for f in fresh or []:
-        col, _, age = f.partition("=")
-        parse_period(age)  # validate early
+        col, sep, age = f.partition("=")
+        example = "Pass --fresh col=age, e.g. --fresh ts=24h."
+        if not sep or not age.strip():
+            raise UsageError(f"--fresh needs col=age, got '{f}'", example)
+        try:
+            parse_period(age)  # validate early
+        except ValueError as exc:
+            raise UsageError(f"--fresh: {exc}", example) from exc
         spec.fresh[col.strip()] = age.strip()
     return spec
 

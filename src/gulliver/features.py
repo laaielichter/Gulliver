@@ -18,7 +18,7 @@ from . import checks as checks_mod
 from . import diffing, guard, lineage, runaway
 from . import incremental as incr
 from .config import ConfigError, Connection, Settings
-from .core import _engine, _error, _fmt_bytes, _fmt_usd, _gate, _store, _table_infos
+from .core import UsageError, _engine, _error, _fmt_bytes, _fmt_usd, _gate, _store, _table_infos
 from .engines import Engine, EngineError, dialect_for
 from .lint import lint
 from .security import policy_for
@@ -356,6 +356,8 @@ def incremental(settings: Settings | None, sql: str, connection: str | None = No
     try:
         advice = incr.analyze(rendered, dialect, time_column=time_column, unique_key=unique_key,
                               period=period, lookback=lookback)
+    except UsageError as exc:
+        return _error(str(exc), next_step=exc.next_step)
     except ValueError as exc:
         return _error(str(exc))
     result: dict[str, Any] = {"status": "ok" if advice["strategy"] != "not_safe" else "warn", **advice}
@@ -508,6 +510,8 @@ def check(settings: Settings, target: str, connection: str | None = None, where:
         base_spec = cfg.spec
     try:
         cli_spec = checks_mod.parse_spec(unique, not_null, accepted, ranges, fresh, min_rows, max_change_pct)
+    except UsageError as exc:
+        return _error(str(exc), next_step=exc.next_step)
     except ValueError as exc:
         return _error(str(exc))
     spec = checks_mod.merge_specs(base_spec, cli_spec) if base_spec is not None else cli_spec

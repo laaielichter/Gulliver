@@ -332,6 +332,22 @@ def test_check_reports_a_bad_range_before_querying(settings):
     assert "min 100 > max 1" in r["error"]
 
 
+def test_malformed_check_options_name_the_flag_and_show_an_example(settings):
+    generic = "Fix the problem above and try again."
+    fresh = features.check(settings, "events", fresh=["ts"])
+    assert fresh["status"] == "error" and "--fresh" in fresh["error"]
+    assert "col=age" in fresh["next_step"] and fresh["next_step"] != generic
+    rng = features.check(settings, "events", ranges=["amount"])
+    assert rng["status"] == "error" and "--range" in rng["error"]
+    assert "amount=0:1000" in rng["next_step"] and rng["next_step"] != generic
+    acc = features.check(settings, "events", accepted=["event_type"])
+    assert acc["status"] == "error" and "--accepted" in acc["error"]
+    assert "status=new|paid" in acc["next_step"] and acc["next_step"] != generic
+    bad_period = features.incremental(None, "SELECT 1 AS ts", period="abc")
+    assert bad_period["status"] == "error" and "--period" in bad_period["error"]
+    assert "--period 1d" in bad_period["next_step"] and bad_period["next_step"] != generic
+
+
 def test_check_row_count_change(settings):
     features.check(settings, "users")
     r = features.check(settings, "select * from users where user_id < 10000", max_change_pct=10)

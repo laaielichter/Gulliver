@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlglot import exp
 
+from .core import UsageError
 from .lint import _has_aggregation, _outer_select
 from .sqlsafety import base_tables, classify, table_ref
 
@@ -35,6 +36,14 @@ def parse_period(text: str) -> timedelta:
     if unit.startswith("w"):
         return timedelta(weeks=n)
     return timedelta(days=n)
+
+
+def _parse_period_flag(period: str) -> timedelta:
+    try:
+        return parse_period(period)
+    except ValueError as exc:
+        raise UsageError(f"--period: {exc}",
+                         "Pass --period <duration>, e.g. --period 1d or --period 30 min.") from exc
 
 
 def _batch_size(period: timedelta) -> str:
@@ -117,7 +126,7 @@ def analyze(sql: str, dialect: str = "duckdb", time_column: str | None = None,
     outer = _outer_select(tree)
     if outer is None:
         return {"strategy": "not_safe", "reasons": ["UNION/INTERSECT at the top level: split it into models first"]}
-    step = parse_period(period)
+    step = _parse_period_flag(period)
     reasons: list[str] = []
     notes: list[str] = []
 

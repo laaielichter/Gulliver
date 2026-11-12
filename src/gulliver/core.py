@@ -48,6 +48,14 @@ def _error(message: str, next_step: str = "Fix the problem above and try again."
     return {"status": "error", "error": message, "next_step": next_step, **extra}
 
 
+class UsageError(ValueError):
+    """A malformed flag value: the message names the option, ``next_step`` carries a working example."""
+
+    def __init__(self, message: str, next_step: str):
+        super().__init__(message)
+        self.next_step = next_step
+
+
 def _fmt_usd(value: float | None) -> str:
     if value is None:
         return "unknown"
