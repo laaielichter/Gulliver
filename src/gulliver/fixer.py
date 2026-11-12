@@ -468,8 +468,18 @@ def fix(settings: Any, sql: str, connection: str | None = None, dialect: str | N
     """Rewrite the SQL and, when a connection is available, estimate both versions (no data is read).
 
     verify=True also tests every change on generated edge-case data (see verify.py)."""
-    from .core import _engine, _fmt_bytes, _fmt_usd, _table_infos
+    from .core import _engine, _error, _fmt_bytes, _fmt_usd, _table_infos
     from .engines import EngineError, dialect_for
+
+    # `cases or DEFAULT_CASES` below turns 0 into the default of 200, and a negative
+    # number reaches the verifier as a range with no cases, which reports having
+    # checked nothing. Neither is what the caller asked for, so refuse both before any
+    # rewrite is verified. --cases without --verify is ignored, as it was before.
+    if verify and cases is not None and cases < 1:
+        return _error(
+            f"--cases must be 1 or more (got {cases}); --verify cannot check a rewrite on fewer than one case",
+            next_step="Pass --cases 1 or more, or leave --cases out to use the default of 200.",
+        )
 
     conn = None
     if settings is not None:

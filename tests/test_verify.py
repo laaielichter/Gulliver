@@ -330,3 +330,30 @@ def test_a_short_time_budget_is_kept_even_when_cases_are_slow():
     verify.check(sql.replace("where ", "where a.id is not null and "), [sql], "duckdb",
                  {"t": {"columns": [{"name": "id", "type": "BIGINT"}]}}, cases=40, time_budget_s=2.0)
     assert time.monotonic() - started < 3.5
+
+
+@pytest.mark.parametrize("cases", ["0", "-5"])
+def test_cli_fix_verify_refuses_cases_below_one(capsys, cases):
+    # `cases or DEFAULT_CASES` turned 0 into 200, and a negative number reached the
+    # verifier as an empty range that reported having checked one case and passed.
+    sql = "select e.id from e where e.user_id not in (select user_id from banned)"
+    assert main(["fix", "--dialect", "duckdb", "--mode", "all", "--verify", "--cases", cases, "--json", sql]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error"
+    assert cases in data["error"]
+    assert data["next_step"]
+    assert "verify" not in data
+
+
+def test_fix_refuses_cases_below_one_without_verify_ignored(capsys):
+    # --cases without --verify was ignored before and stays ignored, so the run still succeeds.
+    assert main(["fix", "--dialect", "duckdb", "--cases", "0", "--json", "select a from t1 union select a from t2"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] in ("ok", "warn")
+
+
+def test_fix_cases_below_one_through_the_function():
+    for cases in (0, -5):
+        result = fix(None, "select a from t1 union select a from t2", dialect="duckdb", verify=True, cases=cases)
+        assert result["status"] == "error"
+        assert str(cases) in result["error"]
