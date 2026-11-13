@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `spend --days N` refuses a value above 365 (the same limit as `top`) with `status: error` and a `next_step`, and exits 1 instead of crashing with an `OverflowError` traceback on a huge N (#107).
+
 ## 0.4.0 - 2026-11-11
 
 Data checks you define once in `gulliver.toml` and run in CI, a lint baseline for existing repos, rehearsal
