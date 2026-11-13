@@ -814,13 +814,13 @@ gulliver run SQL [--max-rows N] [--allow-write]
 gulliver receipt [ID|latest] [--format markdown|json] [-o PATH]
 gulliver receipt --list [--limit N] [--status STATUS] [--json]
 gulliver approve ID [--note TEXT]     (human only)
-gulliver demo [PATH]                  create a demo DuckDB database
+gulliver demo [PATH] [--events N] [--overwrite] create a demo DuckDB database
 gulliver lineage --models DIR | --manifest FILE
 gulliver impact TABLE[.COLUMN] --models DIR | --manifest FILE
 gulliver snapshot | drift [--models DIR] [--save]
 gulliver diff --left SQL --right SQL --key k1,k2 [--right-connection NAME] [--columns a,b]
 gulliver translate SQL --to D [--from D] [--check] [-o PATH]
-gulliver incremental SQL [--time-column C] [--unique-key K] [--period 1d] [--lookback 1]
+gulliver incremental SQL [--time-column C] [--unique-key K] [--period 1d] [--lookback 1] [--no-savings]
 gulliver check TARGET [--where W] [--unique K] [--not-null C] [--accepted C=a|b] [--range C=min:max] [--fresh C=24h] [--min-rows N] [--max-change PCT] [--samples 0-20]
 gulliver top [--source auto|receipts|pg_stat_statements|bigquery_jobs|snowflake_history|csv:FILE|jsonl:FILE]
              [--file PATH] [--days 7] [--limit 20] [--analyze 10] [--rank-by auto|cost|runtime|bytes|calls] [-o PATH]
@@ -832,7 +832,7 @@ gulliver spend [--by agent|day|table|session|task|connection|kind] [--days 7] [-
 gulliver audit verify [--head HASH]   check the hash chain over ledger, receipts and approvals
 gulliver prune [--older-than 30d] [--keep-last N] [--dry-run]   clean up old receipts and expired approvals
 gulliver tools --format mcp|openai|gemini [--toolset core|pipeline|all|NAMES]
-gulliver mcp [--http] [--toolset core|pipeline|all|NAMES]   start the MCP server
+gulliver mcp [--http] [--host HOST] [--port N] [--toolset core|pipeline|all|NAMES]   start the MCP server
 ```
 
 Exit codes: `0` ok, `1` error, `2` blocked (also: a lint finding at `--fail-on`, a rewrite found by

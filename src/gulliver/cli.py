@@ -282,8 +282,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("demo", help="Create a demo DuckDB database (5M events) to try Gulliver")
     p.add_argument("path", nargs="?", default="gulliver_demo.duckdb")
-    p.add_argument("--overwrite", action="store_true")
-    p.add_argument("--events", type=int, default=5_000_000)
+    p.add_argument("--overwrite", action="store_true", help="Replace PATH if it already exists")
+    p.add_argument("--events", type=int, default=5_000_000, help="Number of generated events (default: 5000000)")
 
     def models_args(p: argparse.ArgumentParser) -> None:
         p.add_argument("--models", help="Folder with SQL models (*.sql, dbt-style refs allowed)")
@@ -385,9 +385,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--toolset", default="all", help="all, core, pipeline, or a comma list of those and tool names")
 
     p = sub.add_parser("mcp", help="Start the MCP server (same as gulliver-mcp)")
-    p.add_argument("--http", action="store_true")
-    p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--http", action="store_true", help="Serve over HTTP instead of stdio")
+    p.add_argument("--host", default="127.0.0.1", help="HTTP host to bind when using --http (default: 127.0.0.1)")
+    p.add_argument("--port", type=int, default=8765, help="HTTP port to bind when using --http (default: 8765)")
     p.add_argument("--toolset", default="all", help="all, core, pipeline, or a comma list of those and tool names")
     return parser
 

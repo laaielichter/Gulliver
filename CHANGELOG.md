@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- CLI help and README reference now document `demo --events/--overwrite`, `incremental --no-savings` and `mcp --host/--port` (and matching `gulliver-mcp` help). No behavior change. (#124)
+
 ## 0.4.0 - 2026-11-11
 
 Data checks you define once in `gulliver.toml` and run in CI, a lint baseline for existing repos, rehearsal
