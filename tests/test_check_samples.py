@@ -254,3 +254,26 @@ def test_mcp_client_receives_guarded_samples(sample_settings, monkeypatch):
     result = asyncio.run(call()).structured_content
     assert result["status"] == "fail" and result["untrusted"] is True
     assert outcome(result, "unique")["samples"] == [{"values": {"user_id": 1}, "rows": 3}]
+
+def test_check_without_options_does_not_claim_a_verification(sample_settings):
+    result = features.check(sample_settings, "items")
+    assert result["status"] == "ok" and result["failed"] == 0
+    assert result["checks_requested"] == 0
+    assert "All checks passed." not in result["next_step"]
+    assert "--unique" in result["next_step"]
+    assert [c["check"] for c in result["checks"]] == ["row_count"], "the row count is still recorded"
+
+
+def test_check_with_an_option_is_unchanged(sample_settings):
+    # not_null on a column with no NULLs: the spec is non-empty and nothing fails.
+    result = features.check(sample_settings, "items", not_null=["kind"])
+    assert result["checks_requested"] == 1
+    assert result["next_step"] == "All checks passed."
+
+
+def test_check_without_options_through_the_cli(sample_settings, state, tmp_path, capsys):
+    code = main(["--dsn", sample_settings.connection(None).params["path"], "--json", "check", "items"])
+    assert code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["checks_requested"] == 0
+    assert "No checks were requested" in result["next_step"]

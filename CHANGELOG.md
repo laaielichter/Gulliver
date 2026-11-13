@@ -1,10 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `gulliver check TABLE` with no check option no longer says "All checks passed." It still records the row count that a later `--max-change` compares with, but `next_step` now names the options to add and the result carries `"checks_requested": 0`. The output for a run with any option is unchanged (#130).
+
 ## 0.4.0 - 2026-11-11
 
 Data checks you define once in `gulliver.toml` and run in CI, a lint baseline for existing repos, rehearsal
 calibration, receipt listing and pruning, three new lint rules, and stricter refusal of bad budgets, config keys
 and flags. Thanks to 14 outside contributors.
+
+### Fixed
 
 ### Added
 - Refuse inspect limits outside 1-200 and sensitive value scans outside 0-1000 instead of silently clamping them (#97). A named table still ignores the listing limit.

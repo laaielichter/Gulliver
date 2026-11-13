@@ -550,6 +550,9 @@ def check(settings: Settings, target: str, connection: str | None = None, where:
     history_path.write_text(json.dumps({"rows": int(row.get("gv_rows") or 0), "at": iso(now_utc())}))
     costs = [r["cost_usd"] for r in [res, *sample_runs]]
     scans = [r["bytes"] for r in [res, *sample_runs]]
+    checks_requested = (len(spec.unique) + len(spec.not_null) + len(spec.accepted) + len(spec.ranges)
+                        + len(spec.fresh) + (1 if spec.min_rows is not None else 0)
+                        + (1 if spec.max_change_pct is not None else 0))
     result.update(
         status="fail" if failed else "ok",
         connection=conn.name,
@@ -558,9 +561,15 @@ def check(settings: Settings, target: str, connection: str | None = None, where:
         sql_hash=sql_fingerprint(sql),
         checks=outcomes,
         failed=len(failed),
+        checks_requested=checks_requested,
         cost_usd=sum(costs) if all(c is not None for c in costs) else None,
         scanned=_fmt_bytes(sum(scans)) if all(b is not None for b in scans) else None,
-        next_step=("All checks passed." if not failed else
+        # An empty spec runs only the row-count query, which records the history
+        # that a later --max-change compares with. Saying "All checks passed."
+        # there would claim a verification that never happened.
+        next_step=("No checks were requested, so only the row count was recorded. Add --unique, --not-null, "
+                   "--accepted, --range, --fresh, --min-rows or --max-change." if checks_requested == 0 and not failed
+                   else "All checks passed." if not failed else
                    f"{len(failed)} check(s) failed: " + ", ".join(
                        f"{o['check']}" + (f" on {o['column']}" if o.get("column") else "") for o in failed)
                    + ". Fix the data or the pipeline before using it."),
