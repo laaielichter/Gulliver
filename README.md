@@ -546,6 +546,10 @@ All checks become one aggregate query (one scan), budget-gated like any other. S
 when a check fails, so it drops into CI or an orchestrator. Row-count history is kept per target, so
 `--max-change` catches a load that suddenly lost half its rows.
 
+With no check option at all, the run still records the row count, because `--max-change` compares against
+it later, but it does not claim the data was verified: `next_step` says no checks were requested and lists
+the options, and the result carries `"checks_requested": 0`. Add any option and the output is what it was.
+
 Add `--samples N` (1-20; MCP `samples`) to see the most frequent offending values and their row counts for
 failed unique, accepted-values and range checks. A composite key shows every key column; single-column
 uniqueness ignores NULLs, while composite keys include them. This is off by default: each failed supported
