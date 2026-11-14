@@ -273,7 +273,10 @@ def load_settings(
         default = "default"
     if not connections:
         connections["default"] = Connection("default", "duckdb", {"path": ":memory:"})
-    if not default or default not in connections:
+    if default and default not in connections:
+        known = ", ".join(sorted(connections))
+        raise ConfigError(f"default_connection '{default}' is not a connection. Known connections: {known}")
+    if not default:
         default = next(iter(connections))
 
     budget_data = dict(data.get("budget") or {})
