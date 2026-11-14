@@ -47,6 +47,7 @@ and flags. Thanks to 14 outside contributors.
 - @abu-tahir-0 for five fixes on their first day: strict `check --range` bounds (#85), one row-count history per connection (#86), whole-number and non-boolean budget limits (#84), refusing unknown `gulliver.toml` sections (#83) and GV013 for leading `_` (#82).
 
 ### Fixed
+- `parse_period` refuses an out-of-range period with `ValueError` and a clear message, so `prune --older-than 99999999999d`, `check --fresh ts=99999999999d` and `incremental --period 99999999999d` return `status: "error"` and exit 1 instead of an `OverflowError` traceback. Huge values in hours, minutes and weeks are refused the same way as days, and valid periods are unchanged (#108).
 - `spend --days N`, `calibration --days N` and `top --limit N` refuse a value below 1 with `status: error` and a `next_step`, and exit 1 instead of quietly reporting an empty or off-by-one window. `top --analyze` refuses a negative value too, while `--analyze 0` still lists the groups without analysing them (#92).
 - `check --range` refuses `nan`, infinite and non-numeric bounds and an inverted `min > max` before any query runs, naming the column. Before, `nan` / `inf` reached the engine as column names and an inverted range silently failed every row (#74, #85).
 - `check --max-change` keys the row-count history on the resolved connection name, so a check with and without `-c default` shares one history. Histories saved under the old key are still read and migrated (#75, #86).

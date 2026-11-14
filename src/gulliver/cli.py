@@ -584,7 +584,10 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
                     from .incremental import parse_period
                     older_than_td = parse_period(args.older_than)
                 except ValueError as exc:
-                    parser.error(f"--older-than: {exc}")
+                    return _emit(
+                        {"status": "error", "error": f"--older-than: {exc}", "next_step": "Check the arguments."},
+                        args.json,
+                    )
                 result = runaway.prune(settings, older_than=older_than_td,
                                        keep_last=args.keep_last, dry_run=args.dry_run)
                 if args.json or result.get("status") != "ok":

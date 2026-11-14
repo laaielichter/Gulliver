@@ -856,6 +856,16 @@ def test_prune_cli(settings, capsys):
     data = json.loads(out)
     assert data["status"] == "ok" and data["dry_run"] is True
 
-    # Bad argument
-    with pytest.raises(SystemExit):
-        main(["prune", "--older-than", "invalid_period"])
+    # Bad arguments return a clean error result with exit code 1, not a traceback
+    # or an argparse usage dump.
+    code = main(["prune", "--older-than", "invalid_period", "--json"])
+    assert code == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error"
+    assert "period looks like" in data["error"]
+
+    code = main(["prune", "--older-than", "99999999999d", "--dry-run", "--json"])
+    assert code == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error"
+    assert "out of range" in data["error"]
