@@ -89,10 +89,23 @@ def _gated_run(settings: Settings, conn_name: str, engine: Engine, sql: str, pur
 
 
 # -- lineage and impact ---------------------------------------------------------------------
+class ModelsNotFoundError(FileNotFoundError):
+    def __init__(self, message: str,
+                 next_step: str = "Check the path, or pass --manifest path/to/manifest.json for dbt."):
+        super().__init__(message)
+        self.next_step = next_step
+
+
 def _models(models_dir: str | None, manifest: str | None) -> dict[str, lineage.Model]:
     if not models_dir and not manifest:
         raise ValueError("Give a models folder (--models) or a dbt manifest.json (--manifest).")
-    return lineage.load_models(models_dir, manifest)
+    models = lineage.load_models(models_dir, manifest)
+    if models_dir and not models:
+        raise ModelsNotFoundError(
+            f"No .sql files found in models folder: {models_dir}",
+            "Check the path, or pass --manifest path/to/manifest.json for dbt.",
+        )
+    return models
 
 
 def lineage_overview(models_dir: str | None = None, manifest: str | None = None,
@@ -100,7 +113,7 @@ def lineage_overview(models_dir: str | None = None, manifest: str | None = None,
     try:
         models = _models(models_dir, manifest)
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
-        return _error(str(exc))
+        return _error(str(exc), getattr(exc, "next_step", "Fix the problem above and try again."))
     graph = lineage.build(models, dialect)
     sources = sorted({t for m in models.values() for t in m.tables if t not in models})
     return {"status": "ok" if not graph["errors"] else "warn", "models": [m.summary() for m in models.values()],
@@ -114,7 +127,7 @@ def impact(target: str, models_dir: str | None = None, manifest: str | None = No
         models = _models(models_dir, manifest)
         table, column = lineage.parse_target(target)
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
-        return _error(str(exc))
+        return _error(str(exc), getattr(exc, "next_step", "Fix the problem above and try again."))
     graph = lineage.build(models, dialect)
     known_tables = {t for m in models.values() for t in m.tables} | set(models)
     whole = target.strip().strip('`"').lower()
@@ -157,6 +170,12 @@ def snapshot(settings: Settings, connection: str | None = None) -> dict[str, Any
 def drift(settings: Settings, connection: str | None = None, models_dir: str | None = None,
           manifest: str | None = None, save: bool = False) -> dict[str, Any]:
     store = _store(settings)
+    models = None
+    if models_dir or manifest:
+        try:
+            models = _models(models_dir, manifest)
+        except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
+            return _error(str(exc), getattr(exc, "next_step", "Fix the problem above and try again."))
     try:
         with _engine(settings, connection) as (conn, engine):
             current = lineage.snapshot_from_engine(engine)
@@ -174,11 +193,7 @@ def drift(settings: Settings, connection: str | None = None, models_dir: str | N
     result: dict[str, Any] = {"status": "ok", "connection": conn.name, "since": old.get("taken_at"), **diff}
     breaking = [c for c in diff["changes"] if c["change"] in ("removed", "type_changed")]
     breaking_tables = diff["tables_removed"]
-    if models_dir or manifest:
-        try:
-            models = _models(models_dir, manifest)
-        except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
-            return _error(str(exc))
+    if models is not None:
         lineage.build(models, dialect)
         targets = [(c["table"], c["column"]) for c in breaking] + [(t, "*") for t in breaking_tables]
         result["impact"] = lineage.impact(models, targets)["affected"] if targets else []
