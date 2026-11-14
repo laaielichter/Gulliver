@@ -4,6 +4,7 @@
 
 ### Fixed
 - `impact`, `lineage` and `drift` refuse `--models` pointing to a folder with no `.sql` files with `status: error` and a `next_step` instead of reporting zero models or empty impact. Thanks to @shaw778! (#122, #147)
+- `check --fresh`, `--range` and `--accepted` with a malformed value, and `incremental --period`, now return an error message that names the option and a `next_step` with a working example instead of the generic one (#123).
 
 ## 0.4.0 - 2026-11-11
 
