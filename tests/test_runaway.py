@@ -380,6 +380,15 @@ def test_spend_by_agent_day_and_table(billed, capsys):
     assert "| a | $0.6000 |" in runaway.render_spend(by_agent)
 
 
+def test_spend_refuses_days_above_365(billed):
+    """A window wider than a year is refused before it can overflow the date arithmetic (#107)."""
+    s = billed()
+    for bad in (1000000, 99999999999):
+        out = runaway.spend(s, days=bad)
+        assert out["status"] == "error", out
+        assert "between 1 and 365" in out["error"]
+
+
 def test_cli_agent_flag_and_spend(demo_db, state, capsys):
     assert main(["--dsn", demo_db, "--agent", "cli-bot", "run", "--json", Q]) == 0
     capsys.readouterr()

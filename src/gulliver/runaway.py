@@ -313,6 +313,8 @@ def spend(settings: Settings, by: str = "agent", days: int = 7) -> dict[str, Any
         return _error(f"by must be one of {', '.join(SPEND_BY)}", "Use --by agent, day or table.")
     if days < 1:
         return _error("--days must be at least 1.", "Give a positive number of days, for example --days 7.")
+    if days > 365:
+        return _error("--days must be between 1 and 365.", "Give a number of days between 1 and 365.")
     days = int(days)
     first = now_utc().date() - timedelta(days=days - 1)
     groups: dict[str, dict[str, Any]] = {}
