@@ -1,6 +1,8 @@
 import asyncio
 import json
 
+import pytest
+
 from gulliver.cli import main
 from gulliver.mcp_server import build_server, export_tools
 
@@ -98,6 +100,21 @@ def test_cli_translate_output_file(tmp_path, capsys):
     assert data["warnings"]  # still printed
     assert out.read_text(encoding="utf-8") == data["sql"]
 
+
+@pytest.mark.parametrize("extra, message", [
+    (["--min-rows", "-5"], "min_rows"),
+    (["--max-change", "-5"], "max_change"),
+    (["--max-change", "nan"], "max_change"),
+    (["--max-change", "inf"], "max_change"),
+])
+def test_check_refuses_invalid_thresholds(demo_db, capsys, extra, message):
+    code = main(["--dsn", demo_db, "--json", "check", "events", "--not-null", "event_id", *extra])
+    assert code == 1
+    assert message in capsys.readouterr().out
+
+
+def test_check_accepts_zero_min_rows(demo_db):
+    assert main(["--dsn", demo_db, "--json", "check", "events", "--not-null", "event_id", "--min-rows", "0"]) == 0
 
 
 def test_mcp_check_by_name_and_status_checks(demo_db, state, tmp_path, monkeypatch):
