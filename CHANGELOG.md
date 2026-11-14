@@ -4,6 +4,7 @@
 
 ### Fixed
 - `impact`, `lineage` and `drift` refuse `--models` pointing to a folder with no `.sql` files with `status: error` and a `next_step` instead of reporting zero models or empty impact. Thanks to @shaw778! (#122, #147)
+- `spend --days N` refuses a value above 365 (the same limit as `top`) with `status: error` and a `next_step`, and exits 1 instead of crashing with an `OverflowError` traceback on a huge N (#107).
 
 ## 0.4.0 - 2026-11-11
 

@@ -859,3 +859,12 @@ def test_prune_cli(settings, capsys):
     # Bad argument
     with pytest.raises(SystemExit):
         main(["prune", "--older-than", "invalid_period"])
+
+
+def test_spend_refuses_a_window_above_365_days(settings):
+    """A huge --days used to crash with OverflowError in the date math (#107)."""
+    for days in (99999999999, 366):
+        res = runaway.spend(settings, by="agent", days=days)
+        assert res["status"] == "error" and "365" in res["error"] and res["next_step"]
+    for days in (1, 365):
+        assert runaway.spend(settings, by="agent", days=days)["status"] == "ok"
