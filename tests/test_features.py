@@ -83,6 +83,43 @@ def test_impact_cli(models, capsys):
     assert "country_report" in capsys.readouterr().out
 
 
+def test_empty_models_folder_refused_by_impact_and_lineage(tmp_path, capsys):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    for fn in (lambda: features.impact("raw.users.id", str(empty)),
+               lambda: features.lineage_overview(str(empty))):
+        res = fn()
+        assert res["status"] == "error"
+        assert f"No .sql files found in models folder: {empty}" == res["error"]
+        assert "Check the path, or pass --manifest path/to/manifest.json for dbt." in res["next_step"]
+
+    assert main(["impact", "raw.users.id", "--models", str(empty)]) == 1
+    assert "No .sql files found in models folder" in capsys.readouterr().out
+    assert main(["lineage", "--models", str(empty)]) == 1
+    assert "No .sql files found in models folder" in capsys.readouterr().out
+
+
+def test_models_plus_manifest_with_only_one_having_models(tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    manifest_file = tmp_path / "manifest.json"
+    manifest_file.write_text(
+        '{"nodes": {"model.pkg.m": {"resource_type": "model", "name": "m", "raw_code": "select 1 as id"}}}',
+        encoding="utf-8",
+    )
+
+    res = features.impact("m", models_dir=str(empty), manifest=str(manifest_file))
+    assert res["status"] == "ok"
+
+    empty_manifest = tmp_path / "empty_manifest.json"
+    empty_manifest.write_text('{"nodes": {}}', encoding="utf-8")
+    err = features.impact("m", models_dir=str(empty), manifest=str(empty_manifest))
+    assert err["status"] == "error"
+    assert "No .sql files found in models folder" in err["error"]
+
+
 # -- drift -------------------------------------------------------------------------------------------
 def test_drift_detects_removed_column_and_impact(tmp_path, state, models):
     db = tmp_path / "w.duckdb"
@@ -107,6 +144,31 @@ def test_drift_detects_removed_column_and_impact(tmp_path, state, models):
     saved = features.drift(s, save=True)
     assert saved["saved"] is True
     assert features.drift(s)["changes"] == []
+
+
+def test_empty_models_folder_refused_by_drift(tmp_path, state, capsys):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    db = tmp_path / "drift_empty.duckdb"
+    con = duckdb.connect(str(db))
+    con.execute("create table t as select 1 as id")
+    con.close()
+    s = load_settings(dsn=str(db))
+
+    res = features.drift(s, models_dir=str(empty))
+    assert res["status"] == "error"
+    assert f"No .sql files found in models folder: {empty}" == res["error"]
+    assert "Check the path, or pass --manifest path/to/manifest.json for dbt." in res["next_step"]
+
+    snap = features.drift(s)
+    assert snap["status"] == "ok"
+
+    res_after = features.drift(s, models_dir=str(empty))
+    assert res_after["status"] == "error"
+    assert "No .sql files found in models folder" in res_after["error"]
+
+    assert main(["drift", "--models", str(empty), "--dsn", str(db)]) == 1
+    assert "No .sql files found in models folder" in capsys.readouterr().out
 
 
 # -- translate ---------------------------------------------------------------------------------------
