@@ -91,7 +91,9 @@ def _is_star_projection(node: exp.Expression) -> bool:
 
 
 def _join_condition(join: exp.Join) -> exp.Expression | None:
-    return join.args.get("on") or (exp.true() if join.args.get("using") else None)
+    # NATURAL JOIN joins on the columns both tables share, so it has an implicit key.
+    has_key = join.args.get("using") or (join.args.get("method") or "").upper() == "NATURAL"
+    return join.args.get("on") or (exp.true() if has_key else None)
 
 
 def _aliases_in(expr: exp.Expression) -> set[str]:

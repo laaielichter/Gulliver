@@ -73,6 +73,13 @@ def test_missing_join_condition_is_an_error():
     assert rules("select e.id from events e, users u")["GV003"] == "error"
 
 
+def test_natural_join_has_an_implicit_key_and_is_not_cartesian():
+    for sql in ("select a from t natural join u limit 5",
+                "select a from t natural left join u limit 5"):
+        for dialect in ("duckdb", "postgres"):
+            assert "GV003" not in rules(sql, dialect), (sql, dialect)
+
+
 def test_comma_join_with_where_key_is_info():
     assert rules("select e.id from events e, users u where e.user_id = u.user_id limit 5")["GV003"] == "info"
 
