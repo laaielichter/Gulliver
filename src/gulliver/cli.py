@@ -602,7 +602,7 @@ def _main(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
                 print(text, end="")
             return 0
         if args.command == "status":
-            result = core.status(settings)
+            result = core.status(settings, args.connection)
         elif args.command == "inspect" and (args.sensitive or args.scan):
             from .guard import inspect_sensitive
 

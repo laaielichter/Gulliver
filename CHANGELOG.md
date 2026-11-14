@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Unknown `default_connection` names in `gulliver.toml` are refused with a `ConfigError` listing the known connections instead of silently falling back to the first connection, and `gulliver -c NAME status` refuses an unknown NAME the same way `preflight` does (#127).
 - `impact`, `lineage` and `drift` refuse `--models` pointing to a folder with no `.sql` files with `status: error` and a `next_step` instead of reporting zero models or empty impact. Thanks to @shaw778! (#122, #147)
 
 ## 0.4.0 - 2026-11-11

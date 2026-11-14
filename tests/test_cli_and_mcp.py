@@ -16,6 +16,20 @@ def test_cli_status_json_after_command(demo_db, state, capsys):
     assert data["status"] == "ok"
 
 
+def test_cli_status_unknown_connection_refused(demo_db, state, capsys):
+    assert main(["-c", "nosuch", "status", "--json"]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error"
+    assert "Unknown connection 'nosuch'" in data["error"]
+    assert "Known connections: default" in data["error"]
+
+
+def test_cli_status_known_connection_ok(demo_db, state, capsys):
+    assert main(["-c", "default", "status", "--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "ok"
+
+
 def test_cli_exit_codes(demo_db, state, capsys):
     assert main(["lint", "select e.id from events e, users u"]) == 2
     assert main(["--dsn", demo_db, "preflight", "--json", "select count(*) from events"]) == 0

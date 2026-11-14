@@ -94,7 +94,8 @@ def _runaway():
 
 
 # -- status ----------------------------------------------------------------------------
-def status(settings: Settings) -> dict[str, Any]:
+def status(settings: Settings, connection: str | None = None) -> dict[str, Any]:
+    settings.connection(connection)  # raises ConfigError for an unknown -c name
     spent = _store(settings).spent_today()
     budget = settings.budget
     res = {

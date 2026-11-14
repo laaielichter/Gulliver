@@ -38,6 +38,26 @@ def test_toml_connections_and_budget(tmp_path, monkeypatch):
         s.connection("nope")
 
 
+def test_unknown_default_connection_is_refused(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("GULLIVER_DSN", raising=False)
+    (tmp_path / "gulliver.toml").write_text(
+        'default_connection = "nosuch"\n'
+        "[connections.warehouse]\nengine = \"duckdb\"\npath = \"gulliver_demo.duckdb\"\n"
+    )
+    with pytest.raises(ConfigError, match="default_connection 'nosuch' is not a connection. "
+                                          "Known connections: warehouse"):
+        load_settings()
+    # same, with no [connections] at all: only the implicit in-memory default is known
+    (tmp_path / "gulliver.toml").write_text('default_connection = "nosuch"\n')
+    with pytest.raises(ConfigError, match="default_connection 'nosuch' is not a connection. "
+                                          "Known connections: default"):
+        load_settings()
+    # --dsn / GULLIVER_DSN still overrides the typo, as before
+    monkeypatch.setenv("GULLIVER_DSN", "duckdb://:memory:")
+    assert load_settings().default_connection == "default"
+
+
 def test_unknown_budget_key(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "gulliver.toml").write_text("[budget]\nmax_qeury_usd = 1\n")
