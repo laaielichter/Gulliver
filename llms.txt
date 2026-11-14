@@ -56,6 +56,9 @@ Do not run the same query again and again. If `gulliver_run` returns `block` wit
 
 ## Pipeline work
 
+- Lint warning GV020 flags `= NULL`, `<> NULL` and `!= NULL` in either operand order. Use `IS NULL` /
+  `IS NOT NULL`, or `IS NOT DISTINCT FROM` for NULL-safe equality. There is no autofix because results change.
+
 - Lint warning GV016 flags `ORDER BY RANDOM()` / `RAND()`, even with LIMIT. For random row sampling,
   consider `TABLESAMPLE` or DuckDB's `USING SAMPLE`; check the engine's sampling semantics first.
 

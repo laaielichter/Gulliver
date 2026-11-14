@@ -44,6 +44,27 @@ def test_positions_on_a_multi_line_file(tmp_path):
     assert found["GV003"].severity == "error"
 
 
+def test_null_comparison_file_position_and_ignore(tmp_path):
+    sql = "select event_id\nfrom events\nwhere amount = NULL\nlimit 5;\n"
+    path = _write(tmp_path / "q.sql", sql)
+    finding, = lint_file(path).findings
+    assert (finding.rule, finding.line, finding.col) == ("GV020", 3, 7)
+    _write(path, sql.replace("amount = NULL", "amount = NULL -- gulliver: ignore GV020"))
+    result = lint_file(path, warn_unused_ignores=True)
+    assert result.findings == []
+    assert [f.rule for f in result.ignored] == ["GV020"]
+
+
+def test_null_comparison_config_disable_and_severity(tmp_path):
+    path = _write(tmp_path / "q.sql", "select event_id from events where amount != NULL limit 5")
+    config = lint_config_from_mapping({"disable": ["GV020"]})
+    assert lint_file(path, config=config).findings == []
+    config = lint_config_from_mapping({"severity": {"null-comparison": "error"}})
+    result = lint_paths([str(path)], config=config)
+    assert result["status"] == "block"
+    assert result["counts"]["error"] == 1
+
+
 def test_multi_statement_file_splits_on_real_semicolons_only(tmp_path):
     f = _write(tmp_path / "q.sql", "select 'a;b' as x from t limit 1;\n-- note; not a split\n"
                                    "select y from t order by y;\ndrop table t;\ncreate table s as select * from t\n")

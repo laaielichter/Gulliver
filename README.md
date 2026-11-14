@@ -779,6 +779,7 @@ The action posts one PR comment and updates it on every push, writes the job sum
 | GV016 | order-by-random | warn |
 | GV017 | deep-offset | warn |
 | GV018 | count-for-existence | info |
+| GV020 | null-comparison | warn |
 | GV900 | parse-error (file lint only) | warn |
 | GV901 | unused-ignore (an unreadable or unused `gulliver: ignore`) | warn |
 

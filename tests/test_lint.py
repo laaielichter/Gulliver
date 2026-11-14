@@ -266,3 +266,67 @@ def test_count_for_existence_is_listed_with_rule_metadata():
     assert rule["default_severity"] == "info"
     assert rule["autofix"] == "none"
     assert "EXISTS" in rule["fix"]
+
+
+@pytest.mark.parametrize("dialect", ["duckdb", "postgres", "bigquery", "snowflake"])
+@pytest.mark.parametrize("comparison", [
+    "amount = NULL", "amount <> NULL", "amount != NULL",
+    "NULL = amount", "NULL <> amount", "NULL != amount", "NULL = NULL",
+    "amount = (NULL)",
+])
+def test_null_comparison_warns(comparison, dialect):
+    stmt = classify(f"select event_id from events where {comparison} limit 5", dialect)
+    finding, = [f for f in lint(stmt.select, dialect) if f.rule == "GV020"]
+    assert finding.name == "null-comparison"
+    assert finding.severity == "warn"
+    assert finding.message == (
+        f"{comparison.replace('!=', '<>')} is never true: a comparison with NULL gives NULL."
+    )
+    assert "IS NULL" in finding.fix and "IS NOT NULL" in finding.fix
+    assert "IS NOT DISTINCT FROM" in finding.fix
+    assert finding.node is not None
+
+
+@pytest.mark.parametrize("dialect", ["duckdb", "postgres", "bigquery", "snowflake"])
+@pytest.mark.parametrize("comparison", [
+    "u.deleted_at = NULL", "NULL = u.deleted_at", "u.deleted_at <> NULL",
+])
+def test_null_comparison_message_preserves_join_operands(comparison, dialect):
+    stmt = classify(
+        f"select e.event_id from events e join users u on e.user_id = u.id and {comparison} limit 5",
+        dialect,
+    )
+    finding, = [f for f in lint(stmt.select, dialect) if f.rule == "GV020"]
+    assert finding.message == f"{comparison} is never true: a comparison with NULL gives NULL."
+
+
+@pytest.mark.parametrize("sql", [
+    "select e.event_id from events e join users u on e.user_id = u.id and e.amount = NULL limit 5",
+    "select case when NULL != amount then 1 else 0 end as flag from events limit 5",
+    "select event_id from events where exists (select 1 from users where id <> NULL) limit 5",
+])
+def test_null_comparison_in_join_case_and_subquery(sql):
+    assert rules(sql)["GV020"] == "warn"
+
+
+@pytest.mark.parametrize("comparison", [
+    "amount IS NULL", "amount IS NOT NULL", "amount IS NOT DISTINCT FROM NULL",
+    "amount IS DISTINCT FROM NULL", "amount IN (1, NULL)",
+    "amount = 1", "amount <> 1", "amount = 'NULL'", "amount = coalesce(NULL, 1)",
+])
+def test_null_comparison_leaves_other_comparisons_alone(comparison):
+    assert "GV020" not in rules(f"select event_id from events where {comparison} limit 5")
+
+
+def test_null_comparison_is_listed_without_autofix():
+    from gulliver.fixer import rewrite
+    from gulliver.lint_report import rules as rule_docs
+
+    rule, = [r for r in rule_docs() if r["rule"] == "GV020"]
+    assert rule["name"] == "null-comparison"
+    assert rule["default_severity"] == "warn"
+    assert rule["autofix"] == "none"
+    sql = "select event_id from events where amount = NULL limit 5"
+    for mode in ("safe", "all"):
+        result = rewrite(sql, mode=mode)
+        assert result["changes"] == []
