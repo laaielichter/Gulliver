@@ -4,6 +4,7 @@
 
 ### Fixed
 - `impact`, `lineage` and `drift` refuse `--models` pointing to a folder with no `.sql` files with `status: error` and a `next_step` instead of reporting zero models or empty impact. Thanks to @shaw778! (#122, #147)
+- `run --max-rows N` refuses a value below 0 with `status: error` and a `next_step`, exits 1, and skips estimating, running, or writing a receipt, while `--max-rows 0` stays valid (#119).
 
 ## 0.4.0 - 2026-11-11
 

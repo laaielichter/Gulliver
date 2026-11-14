@@ -190,3 +190,19 @@ def test_budget_defaults_are_sane():
     b = Budget()
     assert b.approval_over_usd < b.max_query_usd < b.day_usd
     assert Connection("x", "duckdb").public_dict() == {"name": "x", "engine": "duckdb"}
+
+
+def test_run_refuses_negative_max_rows_and_allows_zero(settings):
+    err = core.run(settings, GOOD, max_rows=-5)
+    assert err["status"] == "error"
+    assert "-5" in err["error"] and "--max-rows" in err["error"] and err["next_step"]
+    assert core.list_receipts(settings)["receipts"] == []
+
+    zero = core.run(settings, GOOD, max_rows=0)
+    assert zero["status"] == "ok"
+    assert zero["preview"] == []
+    assert zero["actual"]["rows"] == 8
+
+    over = core.run(settings, GOOD, max_rows=settings.budget.max_output_rows + 50)
+    assert over["status"] == "ok"
+    assert len(over["preview"]) <= settings.budget.max_output_rows

@@ -602,6 +602,11 @@ def _rehearse(settings: Settings, sql: str, connection: str | None, fractions: l
 # -- run -------------------------------------------------------------------------------
 def run(settings: Settings, sql: str, connection: str | None = None, max_rows: int | None = None,
         allow_write: bool = False) -> dict[str, Any]:
+    if max_rows is not None and (isinstance(max_rows, bool) or not isinstance(max_rows, int) or max_rows < 0):
+        return _error(
+            f"--max-rows must be at least 0, got {max_rows}.",
+            "Pass a non-negative integer for --max-rows (0 returns row counts without preview rows).",
+        )
     try:
         return _run(settings, sql, connection, max_rows, allow_write)
     except ConfigError as exc:

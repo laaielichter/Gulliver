@@ -99,7 +99,6 @@ def test_cli_translate_output_file(tmp_path, capsys):
     assert out.read_text(encoding="utf-8") == data["sql"]
 
 
-
 def test_mcp_check_by_name_and_status_checks(demo_db, state, tmp_path, monkeypatch):
     db_path = demo_db.replace("\\", "/")
     monkeypatch.chdir(tmp_path)
@@ -155,3 +154,17 @@ min_rows = 100
         err_data = json.loads(err_res.content[0].text)
     assert err_data.get("status") == "error"
     assert "Unknown configured check" in err_data.get("error", "")
+
+
+def test_cli_run_refuses_negative_max_rows_and_allows_zero(demo_db, state, capsys):
+    assert main(["--dsn", demo_db, "run", "--max-rows", "-5", "--json", "select count(*) from users"]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error" and "-5" in data["error"] and data["next_step"]
+
+    assert main(["--dsn", demo_db, "run", "--max-rows", "-2", "select count(*) from users"]) == 1
+    plain = json.loads(capsys.readouterr().out)
+    assert plain["status"] == "error" and "-2" in plain["error"]
+
+    assert main(["--dsn", demo_db, "run", "--max-rows", "0", "--json", "select count(*) from users"]) == 0
+    zero = json.loads(capsys.readouterr().out)
+    assert zero["status"] == "ok" and zero["preview"] == [] and zero["actual"]["rows"] == 1
