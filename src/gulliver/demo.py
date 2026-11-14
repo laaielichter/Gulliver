@@ -5,9 +5,24 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from .core import _error
+
+MAX_EVENTS = 50_000_000
+
 
 def build_demo(path: str | os.PathLike[str] = "gulliver_demo.duckdb", events: int = 5_000_000,
                users: int = 100_000, overwrite: bool = False) -> dict:
+    if isinstance(events, bool) or not isinstance(events, int) or events < 1:
+        return _error(
+            f"--events must be at least 1, got {events}.",
+            f"Pass an event count between 1 and {MAX_EVENTS:,} (for example --events 5000000).",
+        )
+    if events > MAX_EVENTS:
+        return _error(
+            f"--events cannot exceed {MAX_EVENTS:,}, got {events:,}.",
+            f"Pass an event count between 1 and {MAX_EVENTS:,} (default 5,000,000).",
+        )
+
     import duckdb
 
     target = Path(path)

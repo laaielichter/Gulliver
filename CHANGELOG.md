@@ -4,6 +4,7 @@
 
 ### Fixed
 - `impact`, `lineage` and `drift` refuse `--models` pointing to a folder with no `.sql` files with `status: error` and a `next_step` instead of reporting zero models or empty impact. Thanks to @shaw778! (#122, #147)
+- `demo --events N` refuses values below 1 or above 50,000,000 with `status: error` and a `next_step`, exits 1, and creates no database file (#112).
 
 ## 0.4.0 - 2026-11-11
 

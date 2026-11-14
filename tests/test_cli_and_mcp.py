@@ -2,6 +2,7 @@ import asyncio
 import json
 
 from gulliver.cli import main
+from gulliver.demo import MAX_EVENTS, build_demo
 from gulliver.mcp_server import build_server, export_tools
 
 TOOLS = {"gulliver_status", "gulliver_inspect", "gulliver_lint", "gulliver_preflight", "gulliver_rehearse",
@@ -99,7 +100,6 @@ def test_cli_translate_output_file(tmp_path, capsys):
     assert out.read_text(encoding="utf-8") == data["sql"]
 
 
-
 def test_mcp_check_by_name_and_status_checks(demo_db, state, tmp_path, monkeypatch):
     db_path = demo_db.replace("\\", "/")
     monkeypatch.chdir(tmp_path)
@@ -155,3 +155,38 @@ min_rows = 100
         err_data = json.loads(err_res.content[0].text)
     assert err_data.get("status") == "error"
     assert "Unknown configured check" in err_data.get("error", "")
+
+
+def test_build_demo_refuses_invalid_events_and_creates_no_file(tmp_path):
+    for bad in (-5, 0):
+        target = tmp_path / f"bad_{bad}.duckdb"
+        res = build_demo(target, events=bad)
+        assert res["status"] == "error"
+        assert "--events" in res["error"] and res["next_step"]
+        assert not target.exists()
+
+    over = tmp_path / "over_limit.duckdb"
+    res = build_demo(over, events=MAX_EVENTS + 1)
+    assert res["status"] == "error"
+    assert f"{MAX_EVENTS:,}" in res["error"] and res["next_step"]
+    assert not over.exists()
+
+
+def test_cli_demo_refuses_invalid_events(tmp_path, capsys):
+    for bad in (-5, 0, MAX_EVENTS + 1):
+        target = tmp_path / f"cli_{bad}.duckdb"
+        assert main(["demo", str(target), "--events", str(bad), "--json"]) == 1
+        data = json.loads(capsys.readouterr().out)
+        assert data["status"] == "error" and "--events" in data["error"] and data["next_step"]
+        assert not target.exists()
+
+    plain_target = tmp_path / "cli_plain_bad.duckdb"
+    assert main(["demo", str(plain_target), "--events", "-1"]) == 1
+    plain_data = json.loads(capsys.readouterr().out)
+    assert plain_data["status"] == "error" and "--events" in plain_data["error"]
+    assert not plain_target.exists()
+
+    ok_target = tmp_path / "ok.duckdb"
+    res = build_demo(ok_target, events=10, users=5)
+    assert res["status"] == "ok" and res["created"] is True and res["tables"] == {"events": 10, "users": 5}
+    assert ok_target.exists()
