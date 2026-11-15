@@ -4,6 +4,8 @@
 
 ### Fixed
 - Lint GV003 now reports a join whose `ON` condition does not relate the two tables (`ON 1=1`, `ON TRUE`, `ON t.id = t.id`) as a cartesian product (error) instead of passing it as a key join. A real key, with or without extra conditions, and unqualified columns are unchanged. Thanks to @Ipsita-Mondal-30! (#156, #164)
+- `gulliver fix --verify --timezone NAME` (MCP `timezone`) refuses an unknown zone with `status: error`, exit code 1
+  and `next_step: Use an IANA name, for example --timezone Europe/Amsterdam.` Before, DuckDB's `Unknown TimeZone` was swallowed inside the test harness and the rewrite was still reported as tested. `--timezone` without `--verify` is unchanged (#153).
 - `impact`, `lineage` and `drift` refuse `--models` pointing to a folder with no `.sql` files with `status: error` and a `next_step` instead of reporting zero models or empty impact. Thanks to @shaw778! (#122, #147)
 - `gulliver fix --verify --cases N` refuses a value below 1 with `status: error` and a `next_step`, before any rewrite is verified. Before, `--cases 0` became the default of 200 and `--cases -5` ran one case and reported `status: "ok"`, which is a weaker guarantee than it reads. The MCP tool already refused these with `ge=1`. `--cases` without `--verify` is still ignored Thanks to @tyza66! (#111, #117)
 - `parse_period` refuses an out-of-range period with `ValueError` and a clear message, so `prune --older-than 99999999999d`, `check --fresh ts=99999999999d` and `incremental --period 99999999999d` return `status: "error"` and exit 1 instead of an `OverflowError` traceback. Huge values in hours, minutes and weeks are refused the same way as days, and valid periods are unchanged Thanks to @draarivpatel-ui! (#108, #110)

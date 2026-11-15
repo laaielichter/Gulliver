@@ -52,6 +52,28 @@ _ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _ZONED = re.compile(r"WITH TIME ZONE|(?<!N)TZ")  # TIMESTAMPTZ, TIMESTAMP_TZ, TIMESTAMP_LTZ; not TIMESTAMP_NTZ
 
 
+def _known_time_zone(name: str) -> bool | None:
+    """True when DuckDB accepts the time zone, False when it does not, None
+    when DuckDB cannot be asked.
+
+    DuckDB is the engine that runs the generated-data test, so asking it is
+    what can disagree with the test's own `SET TimeZone`. This opens its own
+    connection: the test harness locks its connections' configuration."""
+    try:
+        import duckdb
+    except ImportError:
+        return None
+    try:
+        with duckdb.connect(":memory:") as con:
+            try:
+                con.execute("SET TimeZone = ?", [name])
+            except Exception:
+                return False
+    except Exception:
+        return None
+    return True
+
+
 class _Log(list):
     """The changes a rewrite applies. `offer` numbers every candidate change in a fixed order and applies it
     unless its number is in `skip`, so a verifier can build the query with one change only, or without one."""
@@ -480,6 +502,25 @@ def fix(settings: Any, sql: str, connection: str | None = None, dialect: str | N
             f"--cases must be 1 or more (got {cases}); --verify cannot check a rewrite on fewer than one case",
             next_step="Pass --cases 1 or more, or leave --cases out to use the default of 200.",
         )
+
+    # --timezone names the session zone the test runs in, so a typo silently
+    # costs the test: DuckDB throws "Unknown TimeZone" inside the harness, the
+    # crash is swallowed, and the rewrite is still reported as tested. Refusing
+    # here keeps --timezone without --verify unchanged, since it is only used
+    # by the test.
+    if verify and timezone is not None:
+        known = _known_time_zone(timezone)
+        if known is not True:
+            if known is None:
+                return _error(
+                    f"could not check the time zone {timezone!r}: the DuckDB used for --verify is not available",
+                    next_step="Pass an IANA name such as --timezone Europe/Amsterdam, or leave --timezone out.",
+                )
+            return _error(
+                f"Unknown time zone {timezone!r}.",
+                next_step="Use an IANA name, for example --timezone Europe/Amsterdam.",
+            )
+
 
     conn = None
     if settings is not None:

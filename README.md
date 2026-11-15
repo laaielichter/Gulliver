@@ -808,6 +808,7 @@ gulliver lint PATH... [--format text|json|sarif|github|gitlab|junit] [--fail-on 
 gulliver rules [--format text|markdown|json]   every lint rule: id, name, severity, autofix
 gulliver fix SQL [--dialect D] [--mode safe|all] [--limit N] [-o PATH]   rewrite SQL, say what changes
 gulliver fix SQL --verify [--cases 200] [--seed 0] [--timezone TZ]      test every rewrite on generated data
+                                         (an unknown TZ is refused; use an IANA name)
 gulliver fix --check | --write PATH...                                  same-rows rewrites in files (CI)
 gulliver preflight SQL                estimate + lint + gate, no execution
 gulliver rehearse SQL [--fractions 0.01,0.03,0.1] [--sample largest|all] [--method auto|system|bernoulli]

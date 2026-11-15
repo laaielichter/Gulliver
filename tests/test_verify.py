@@ -357,3 +357,51 @@ def test_fix_cases_below_one_through_the_function():
         result = fix(None, "select a from t1 union select a from t2", dialect="duckdb", verify=True, cases=cases)
         assert result["status"] == "error"
         assert str(cases) in result["error"]
+# -- an unknown --timezone --------------------------------------------------------------------
+@pytest.mark.parametrize("zone", ["Mars/Phobos", "Europe/Amstredam", ""])
+def test_cli_fix_verify_refuses_an_unknown_timezone(capsys, zone):
+    # DuckDB threw "Unknown TimeZone" inside the harness, the crash was swallowed,
+    # and the rewrite was still reported as tested. The zone is now refused first.
+    sql = "select e.id from e where e.user_id not in (select user_id from banned)"
+    assert main(["fix", "--dialect", "duckdb", "--mode", "all", "--verify", "--cases", "20",
+                 "--timezone", zone, "--json", sql]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error"
+    assert zone in data["error"] or "Unknown time zone" in data["error"]
+    assert "IANA" in data["next_step"]
+    assert "verify" not in data and not data.get("fixed_sql")
+
+
+def test_fix_refuses_an_unknown_timezone_through_the_function():
+    result = fix(None, "select a from t1 union select a from t2", dialect="duckdb", verify=True,
+                 timezone="Mars/Phobos")
+    assert result["status"] == "error"
+    assert "Mars/Phobos" in result["error"]
+    assert not result.get("changes")
+
+
+def test_fix_keeps_a_known_timezone():
+    result = fix(None, "select a from t1 union select a from t2", dialect="duckdb", mode="all", verify=True,
+                 cases=10, timezone="Europe/Amsterdam")
+    assert result["status"] in ("ok", "warn")
+    # The generator found a difference for its one change: the run is a real test, not a skip.
+    assert result.get("verify", {}).get("status") in ("ok", "warn")
+
+
+def test_timezone_without_verify_is_unchanged(capsys):
+    # --timezone only matters to the test, so without --verify it is still ignored.
+    assert main(["fix", "--dialect", "duckdb", "--timezone", "Mars/Phobos", "--json",
+                 "select a from t1 union select a from t2"]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] in ("ok", "warn")
+
+
+def test_mcp_fix_refuses_an_unknown_timezone(demo_db, state, monkeypatch):
+    monkeypatch.setenv("GULLIVER_DSN", demo_db)
+    server = build_server()
+    result = asyncio.run(server.call_tool("gulliver_fix", {
+        "sql": "select count(*) from events where year(ts) = 2025", "verify": True, "cases": 10,
+        "timezone": "Mars/Phobos"}))
+    text = json.dumps(result if isinstance(result, (dict, list)) else
+                      (result.model_dump() if hasattr(result, "model_dump") else str(result)), default=str)
+    assert "Mars/Phobos" in text or "Unknown time zone" in text
+    assert "IANA" in text
