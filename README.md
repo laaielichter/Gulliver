@@ -724,6 +724,8 @@ Fixes are applied as small text edits (comments, line endings and Jinja stay) an
 edited statement re-parses to exactly the rewritten tree. Details:
 [docs/features/lint-ci.md](https://github.com/laaielichter/Gulliver/blob/main/docs/features/lint-ci.md).
 
+For a copyable setup with two models, see the [dbt-style CI example](examples/dbt-ci/).
+
 ### `gulliver review` and the GitHub Action
 
 ```bash
