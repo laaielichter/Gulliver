@@ -89,6 +89,9 @@ models/a.sql:9:7: GV005 [returns exactly the same rows]
 next: 1 same-rows rewrite(s) available. Run `gulliver fix --write` on these files.
 ```
 
+The [dbt-style CI example](../../examples/dbt-ci/) combines Jinja models, a lint policy,
+PR review and pre-commit in one copyable setup.
+
 ## How files are read
 
 - Folders are walked for `*.sql`. Hidden folders, `target/`, `dbt_packages/`, `node_modules/` are skipped
