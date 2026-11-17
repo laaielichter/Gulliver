@@ -13,6 +13,7 @@ gulliver lint models/ --format sarif -o gulliver.sarif  # GitHub Code Scanning (
 gulliver lint models/ --format github                   # annotations on the PR (GitHub Actions)
 gulliver lint models/ --format gitlab -o gl-code-quality.json   # GitLab Code Quality report
 gulliver lint models/ --format junit -o gulliver.xml    # JUnit XML, one testsuite per file
+gulliver lint models/ --format markdown >> $GITHUB_STEP_SUMMARY   # GitHub Actions job summary
 gulliver lint models/ --json                            # everything, for scripts and agents
 gulliver lint models/ --fail-on warn                    # fail on warnings too (default: error)
 gulliver lint . --exclude 'models/legacy/*' --warn-unused-ignores
@@ -27,7 +28,7 @@ gulliver fix --write models/ -c warehouse               # apply same-rows rewrit
 ```
 
 `gulliver lint` with one SQL string (or `-f file.sql`, or stdin) works exactly as before. A value that
-exists on disk, more than one value, a files-only flag (`--format sarif|github|gitlab|junit`, `--fail-on`,
+exists on disk, more than one value, a files-only flag (`--format sarif|github|gitlab|junit|markdown`, `--fail-on`,
 `--exclude`, `--warn-unused-ignores`, `--metadata`, `--baseline`, `--write-baseline`, `-o`), or one value that looks like a path (no spaces, and
 a bare word, or it ends in `/` or `.sql`, or holds a `/`) switches to files mode. So a mistyped or missing
 `models/` gives `Not found` and exit 1, not a SQL parse error.
@@ -181,6 +182,7 @@ baseline = "gulliver-baseline.json"         # relative to gulliver.toml; see Bas
 | `github` | GitHub Actions annotations | GitHub shows a limited number of annotations per step (about 10 of each type); use SARIF for more |
 | `gitlab` | GitLab Code Quality | sha1 fingerprints of path + rule + source line, stable when lines move |
 | `junit` | any CI test report | one testsuite per file; findings at or above `fail_on` are failures |
+| `markdown` | GitHub Actions job summary, PR comments | table with `Severity`, `Rule`, `Where`, `Problem`, `Fix` |
 
 GitHub Actions:
 
@@ -189,6 +191,7 @@ GitHub Actions:
 - run: gulliver lint models/ --format sarif -o gulliver.sarif --fail-on never
 - uses: github/codeql-action/upload-sarif@v3
   with: { sarif_file: gulliver.sarif }
+- run: gulliver lint models/ --format markdown >> $GITHUB_STEP_SUMMARY --fail-on never
 - run: gulliver lint models/ --format github      # annotations, and the job fails on errors
 ```
 

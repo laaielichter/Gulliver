@@ -21,7 +21,8 @@ from . import __version__
 from .lint import RULES
 from .lint_files import META_RULES, FileResult, fails, fingerprint, rule_name
 
-FORMATS = ("text", "json", "sarif", "github", "gitlab", "junit")
+FORMATS = ("text", "json", "sarif", "github", "gitlab", "junit", "markdown")
+MAX_MARKDOWN = 60_000
 HELP_URI = "https://github.com/laaielichter/Gulliver#scale-lint-rules"
 INFO_URI = "https://github.com/laaielichter/Gulliver"
 
@@ -147,7 +148,7 @@ def render(result: dict[str, Any], fmt: str) -> str:
     if result.get("status") == "error" and fmt != "json":
         return f"gulliver: {result.get('error')}"
     return {"text": to_text, "json": to_json, "sarif": to_sarif, "github": to_github, "gitlab": to_gitlab,
-            "junit": to_junit}[fmt](result)
+            "junit": to_junit, "markdown": to_markdown}[fmt](result)
 
 
 def to_json(result: dict[str, Any]) -> str:
@@ -187,6 +188,97 @@ def to_text(result: dict[str, Any]) -> str:
     out.append(summary)
     out.append(f"next: {result.get('next_step', '')}")
     return "\n".join(out)
+
+
+def _escape_cell(text: str | None) -> str:
+    if not text:
+        return ""
+    clean = str(text).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    return clean.replace("|", r"\|")
+
+
+def to_markdown(result: dict[str, Any]) -> str:
+    all_findings = [f for r in _results(result) for f in r.findings]
+    files = result.get("files", 0)
+    if not all_findings and not result.get("findings"):
+        return f"No scale problems found in {files} file(s)."
+
+    findings = all_findings or result.get("findings", [])
+
+    c = result.get("counts") or {}
+    errors = c.get("error", 0)
+    warnings = c.get("warn", 0)
+    info = c.get("info", 0)
+
+    file_str = f"{files} file" if files == 1 else f"{files} files"
+    err_str = f"{errors} error" if errors == 1 else f"{errors} errors"
+    warn_str = f"{warnings} warning" if warnings == 1 else f"{warnings} warnings"
+    info_str = f"{info} info"
+
+    summary = f"### Gulliver lint: {file_str}, {err_str}, {warn_str}, {info_str}"
+    extra = []
+    if result.get("ignored"):
+        extra.append(f"{result['ignored']} ignored")
+    if "baselined" in result:
+        base = f"{result['baselined']} in baseline"
+        if result.get("baseline_fixed"):
+            base += f", {result['baseline_fixed']} fixed: run --write-baseline to shrink it"
+        extra.append(base)
+    if result.get("skipped_statements"):
+        extra.append(f"{result['skipped_statements']} statement(s) not a read, skipped")
+    if extra:
+        summary += " (" + ", ".join(extra) + ")"
+
+    lines = [
+        summary,
+        "",
+        "| Severity | Rule | Where | Problem | Fix |",
+        "|---|---|---|---|---|",
+    ]
+
+    current_len = sum(len(line) + 1 for line in lines)
+    omitted = 0
+    for idx, f in enumerate(findings):
+        if isinstance(f, dict):
+            severity = f.get("severity", "")
+            rule = f.get("rule", "")
+            name = f.get("name", "")
+            path = f.get("path", "")
+            pos = f.get("position") or {}
+            line = f.get("line") or pos.get("line", 1)
+            col = f.get("col") or pos.get("col", 1)
+            msg = f.get("message", "")
+            fix = f.get("fix", "")
+        else:
+            severity = f.severity
+            rule = f.rule
+            name = f.name
+            path = f.path
+            line = f.line
+            col = f.col
+            msg = f.message
+            fix = f.fix
+
+        rule_str = f"{rule} {name}".strip()
+        where = f"`{path}:{line}:{col}`"
+        prob_str = _escape_cell(msg)
+        fix_str = _escape_cell(fix or "")
+        row = f"| {severity} | {rule_str} | {where} | {prob_str} | {fix_str} |"
+
+        reserve = 100
+        if current_len + len(row) + 1 + reserve > MAX_MARKDOWN:
+            omitted = len(findings) - idx
+            break
+        lines.append(row)
+        current_len += len(row) + 1
+
+    if omitted:
+        omitted_str = (f"... {omitted} finding omitted (truncated to fit comment limit)." if omitted == 1
+                       else f"... {omitted} findings omitted (truncated to fit comment limit).")
+        lines.append("")
+        lines.append(omitted_str)
+
+    return "\n".join(lines)
 
 
 def _rule_meta(rid: str) -> dict[str, Any]:

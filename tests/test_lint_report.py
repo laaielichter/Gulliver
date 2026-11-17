@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -256,6 +257,152 @@ def test_text_and_json(two_files):
     assert data["status"] == "block" and data["findings"][0]["position"] == {"line": 1, "col": 1, "end_line": 1,
                                                                              "end_col": 9}
     assert "_results" not in data
+
+
+def test_markdown_format_with_findings(two_files):
+    text = render(two_files, "markdown")
+    lines = text.splitlines()
+    assert lines[0] == "### Gulliver lint: 2 files, 1 error, 2 warnings, 1 info"
+    assert lines[1] == ""
+    assert lines[2] == "| Severity | Rule | Where | Problem | Fix |"
+    assert lines[3] == "|---|---|---|---|---|"
+    assert any("| error | GV003 cartesian-join | `models/a.sql:2:14` |" in line for line in lines)
+    assert any("| warn | GV002 unbounded-output | `models/a.sql:1:1` |" in line for line in lines)
+    assert any("| info | GV007 exact-count-distinct | `models/b.sql:1:8` |" in line for line in lines)
+
+
+def test_markdown_format_clean_run(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _write(tmp_path / "models" / "clean.sql", "select 1 as x;\n")
+    res = lint_paths(["models"])
+    text = render(res, "markdown")
+    assert text == "No scale problems found in 1 file(s)."
+
+
+def test_markdown_format_escapes_pipe_and_newlines(tmp_path):
+    from gulliver.lint_files import FileFinding, FileResult
+
+    finding = FileFinding(
+        path="models/pipe.sql",
+        rule="GV001",
+        severity="warn",
+        message="A message with | a pipe and\na newline\r\ninside",
+        fix="Fix with | another pipe\nand newline",
+        line=1,
+        col=1,
+        end_line=1,
+        end_col=5,
+        statement=1,
+        snippet="",
+    )
+    result = {
+        "files": 1,
+        "statements": 1,
+        "counts": {"error": 0, "warn": 1, "info": 0},
+        "_results": [FileResult(path="models", file=tmp_path / "models", findings=[finding])],
+    }
+    text = render(result, "markdown")
+    assert r"\|" in text
+    assert "A message with \\| a pipe and a newline inside" in text
+    assert "Fix with \\| another pipe and newline" in text
+
+    row = [line for line in text.splitlines() if line.startswith("| warn |")][0]
+    cells = [c.strip() for c in re.split(r"(?<!\\)\|", row.strip()) if c]
+    assert len(cells) == 5
+    assert cells[0] == "warn"
+    assert cells[1] == "GV001 select-star"
+    assert cells[2] == "`models/pipe.sql:1:1`"
+    assert r"\|" in cells[3]
+    assert r"\|" in cells[4]
+
+
+def test_markdown_summary_includes_ignored_and_baselined(tmp_path):
+    from gulliver.lint_files import FileFinding, FileResult
+
+    finding = FileFinding(
+        path="models/a.sql",
+        rule="GV001",
+        severity="warn",
+        message="msg",
+        fix="fix",
+        line=1,
+        col=1,
+        end_line=1,
+        end_col=5,
+        statement=1,
+        snippet="",
+    )
+    result = {
+        "files": 2,
+        "statements": 2,
+        "counts": {"error": 0, "warn": 1, "info": 0},
+        "ignored": 3,
+        "baselined": 4,
+        "baseline_fixed": 1,
+        "_results": [FileResult(path="models", file=tmp_path / "models", findings=[finding])],
+    }
+    text = render(result, "markdown")
+    header = text.splitlines()[0]
+    assert header == (
+        "### Gulliver lint: 2 files, 0 errors, 1 warning, 0 info "
+        "(3 ignored, 4 in baseline, 1 fixed: run --write-baseline to shrink it)"
+    )
+
+
+def test_markdown_truncation_for_long_reports(tmp_path):
+    from gulliver.lint_files import FileFinding, FileResult
+
+    findings = []
+    for i in range(1000):
+        findings.append(FileFinding(
+            path=f"models/subfolder/very_long_model_name_{i}.sql",
+            rule="GV001",
+            severity="warn",
+            message="SELECT * reads every column. Columnar engines charge and work per column.",
+            fix="List only the columns you need.",
+            line=1,
+            col=8,
+            end_line=1,
+            end_col=15,
+            statement=1,
+            snippet="",
+        ))
+
+    result = {
+        "files": 1000,
+        "statements": 1000,
+        "counts": {"error": 0, "warn": 1000, "info": 0},
+        "_results": [FileResult(path="models", file=tmp_path / "models", findings=findings)],
+    }
+    text = render(result, "markdown")
+    assert len(text) <= 60_000
+    assert "findings omitted (truncated to fit comment limit)." in text.splitlines()[-1]
+
+
+def test_markdown_cli_stdout_and_file_output(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    _write(tmp_path / "models" / "a.sql", "select * from events\n")
+
+    # stdout: warnings only, default fail-on error -> exits 0
+    rc = main(["lint", "models", "--format", "markdown"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "### Gulliver lint: 1 file, 0 errors, 2 warnings, 0 info" in out
+    assert "| warn | GV001 select-star | `models/a.sql:1:8` |" in out
+
+    # fail-on warn -> exits 2
+    rc_fail = main(["lint", "models", "--format", "markdown", "--fail-on", "warn"])
+    assert rc_fail == 2
+    capsys.readouterr()
+
+    # file output via -o
+    report_file = tmp_path / "summary.md"
+    rc_out = main(["lint", "models", "--format", "markdown", "-o", str(report_file)])
+    assert rc_out == 0
+    assert report_file.is_file()
+    content = report_file.read_text(encoding="utf-8")
+    assert "### Gulliver lint: 1 file, 0 errors, 2 warnings, 0 info" in content
+    assert "| warn | GV001 select-star | `models/a.sql:1:8` |" in content
 
 
 def test_rules_registry_covers_every_rule():

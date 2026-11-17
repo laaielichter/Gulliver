@@ -212,7 +212,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("sql", nargs="*", help="SQL text, '-' to read stdin, or .sql files and folders (CI mode)")
     p.add_argument("-f", "--file", help="Read one SQL statement from a file")
     p.add_argument("--dialect", default=None, help="duckdb, postgres, bigquery or snowflake")
-    p.add_argument("--format", choices=["text", "json", "sarif", "github", "gitlab", "junit"], default=None,
+    p.add_argument("--format", choices=["text", "json", "sarif", "github", "gitlab", "junit", "markdown"], default=None,
                    help="Files mode output (default text; --json = json)")
     p.add_argument("--fail-on", choices=["error", "warn", "info", "never"], default=None,
                    help="Files mode: exit 2 when a finding is at least this severe (default error, or [lint] fail_on)")

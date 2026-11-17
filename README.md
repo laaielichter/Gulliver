@@ -705,7 +705,7 @@ the ledger, receipts and approvals. Details:
 
 ```bash
 gulliver lint models/ queries/                          # every *.sql file, dbt Jinja included, with line:col
-gulliver lint models/ --format sarif -o gulliver.sarif  # GitHub Code Scanning; also github, gitlab, junit, json
+gulliver lint models/ --format sarif -o gulliver.sarif  # GitHub Code Scanning; also markdown, github, gitlab, junit, json
 gulliver lint models/ --fail-on warn                    # exit 2 on warnings too (default: errors)
 gulliver fix --check models/ -c warehouse               # exit 2 when a same-rows rewrite exists
 gulliver fix --write models/ -c warehouse               # apply only same-rows rewrites, in place
@@ -813,7 +813,7 @@ The read-only gate uses its own codes. A `GS` finding is always a `block` with t
 gulliver status                       connections, budget, spend today (and your own, under caller)
 gulliver inspect [TABLE] [--limit 25] [--sensitive] [--scan N]   limit: 1-200 (ignored with TABLE); scan: 0-1000, 0 disables scanning
 gulliver lint SQL [--dialect D]       scale lint of one query
-gulliver lint PATH... [--format text|json|sarif|github|gitlab|junit] [--fail-on error|warn|info|never]
+gulliver lint PATH... [--format text|json|sarif|github|gitlab|junit|markdown] [--fail-on error|warn|info|never]
                       [--exclude GLOB] [--warn-unused-ignores] [--metadata] [-o PATH]   files and folders (CI)
                       [--baseline FILE] [--write-baseline [FILE]]   report only findings not in the baseline
 gulliver rules [--format text|markdown|json]   every lint rule: id, name, severity, autofix
