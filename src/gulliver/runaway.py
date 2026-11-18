@@ -27,7 +27,7 @@ import csv
 import hashlib
 import io
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -313,8 +313,14 @@ def spend(settings: Settings, by: str = "agent", days: int = 7) -> dict[str, Any
         return _error(f"by must be one of {', '.join(SPEND_BY)}", "Use --by agent, day or table.")
     if days < 1:
         return _error("--days must be at least 1.", "Give a positive number of days, for example --days 7.")
+    today = now_utc().date()
+    max_days = (today - date.min).days + 1   # a longer window would start before 0001-01-01 and overflow
+    if days > max_days:
+        return _error(f"--days must be between 1 and {max_days}: a longer window starts before the year 1.",
+                      "Give a smaller number of days; any window that starts before your first ledger entry "
+                      "already covers all of it.")
     days = int(days)
-    first = now_utc().date() - timedelta(days=days - 1)
+    first = today - timedelta(days=days - 1)
     groups: dict[str, dict[str, Any]] = {}
     total = {"usd": 0.0, "executions": 0, "bytes": 0}
     for e in read_ledger(Store(settings.state_dir)):

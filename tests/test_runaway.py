@@ -869,3 +869,15 @@ def test_prune_cli(settings, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["status"] == "error"
     assert "out of range" in data["error"]
+
+
+def test_spend_refuses_a_window_that_starts_before_the_year_1(settings):
+    """A huge --days crashed with OverflowError in the date math (#107); long but valid windows still work."""
+    longest = (runaway.now_utc().date() - datetime.min.date()).days + 1   # the window then starts at 0001-01-01
+    for days in (longest + 1, 1_000_000_000, 99999999999):
+        res = runaway.spend(settings, by="agent", days=days)
+        assert res["status"] == "error" and str(longest) in res["error"] and res["next_step"]
+    for days in (1, 400, longest):
+        res = runaway.spend(settings, by="agent", days=days)
+        assert res["status"] == "ok" and res["days"] == days
+    assert runaway.spend(settings, by="agent", days=longest)["since"] == "0001-01-01"
