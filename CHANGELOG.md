@@ -44,6 +44,7 @@
 - `gulliver demo --help` describes `--overwrite` and `--events`, `gulliver mcp --help` and `gulliver-mcp --help` describe `--http`, `--host` and `--port`, and the README CLI reference lists `demo --events/--overwrite`, `incremental --no-savings` and `mcp --host/--port`. Defaults and behaviour are unchanged. Thanks to @HarshRajSinghania! (#124, #149)
 - `gulliver receipt --list` takes `--action` (for example `run` or `rehearse`) and uses the global `--connection` to list only the receipts of that action or connection. They combine with `--status`, the limit is applied after all filters, and the output stays summary-only. Thanks to @yinbowen-dc! (#93, #101)
 - `gulliver lint --format markdown` prints a Markdown report for GitHub Actions job summaries (`>> $GITHUB_STEP_SUMMARY`) and PR comments: a summary line and a `Severity | Rule | Where | Problem | Fix` table, with `|` and line breaks escaped in cells, a one-line result for a clean run, and a note when the table is cut to stay under the 65,536-character comment limit. Works with `-o` and `--fail-on`. Thanks to @shaw778! (#133, #179)
+- A runnable dbt-style SQL CI example, [examples/dbt-ci/](examples/dbt-ci/): two Jinja models, a `gulliver.toml` lint and review policy, a GitHub Actions workflow and a pre-commit hook, with the lint output and exit codes to expect. Linked from the README and the lint/CI guide. Thanks to @yinbowen-dc! (#135, #184)
 
 ## 0.4.0 - 2026-11-11
 
