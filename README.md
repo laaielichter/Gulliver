@@ -736,6 +736,8 @@ SQL syntax errors include readable line/column diagnostics and syntax-specific r
 Tokenizer failures use an explicitly labeled end-of-input fallback. See the
 [syntax-error guide](docs/features/lint-ci.md#sql-syntax-errors).
 
+For a copyable setup with two models, see the [dbt-style CI example](examples/dbt-ci/).
+
 ### `gulliver review` and the GitHub Action
 
 ```bash

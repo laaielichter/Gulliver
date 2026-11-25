@@ -1,0 +1,13 @@
+[lint]
+# Start by failing CI on errors while still reporting warnings.
+fail_on = "error"
+# Macros are templates rather than standalone models.
+exclude = ["macros", "macros/**"]
+# Use the SQL dialect of the target warehouse.
+dialect = "duckdb"
+
+[review]
+# Block an estimated scan increase above 100% when a warehouse is configured.
+max_increase_pct = 100
+# Block new lint errors, proved breaking changes with downstream models, and cost regressions.
+fail_on = ["new_lint_error", "breaking_with_downstream", "cost"]

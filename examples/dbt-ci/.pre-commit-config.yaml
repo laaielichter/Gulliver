@@ -1,0 +1,5 @@
+repos:
+  - repo: https://github.com/laaielichter/Gulliver
+    rev: 655b7d4c0789575a902b3f1fcbc6623d563c381c
+    hooks:
+      - id: gulliver-lint
