@@ -303,7 +303,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("snapshot", help="Save the connection's schema (tables, columns, rows) for drift checks")
 
     p = sub.add_parser("drift", help="Schema changes since the last snapshot (and the models they break)")
-    models_args(p)
+    models_args(p, sorted(DIALECTS))
     p.add_argument("--save", action="store_true", help="Accept the current schema as the new snapshot")
 
     p = sub.add_parser("translate", help="Translate SQL between dialects")

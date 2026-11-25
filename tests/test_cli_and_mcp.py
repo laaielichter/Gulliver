@@ -44,9 +44,11 @@ def test_cli_exit_codes(demo_db, state, capsys):
     ["fix", "SELECT 1"],
     ["lineage"],
     ["impact", "raw.users.id"],
+    ["drift"],
+    ["review"],
     ["top"],
 ])
-@pytest.mark.parametrize("dialect", ["bogus", "oracle"])
+@pytest.mark.parametrize("dialect", ["postgress", "oracle"])
 @pytest.mark.parametrize("json_args", [[], ["--json"]])
 def test_cli_refuses_unsupported_dialects(args, dialect, json_args, state, capsys):
     with pytest.raises(SystemExit) as exc:
@@ -56,6 +58,18 @@ def test_cli_refuses_unsupported_dialects(args, dialect, json_args, state, capsy
     assert out.out == ""
     assert f"argument --dialect: invalid choice: '{dialect}'" in out.err
     assert "choose from bigquery, duckdb, postgres, snowflake" in out.err.replace("'", "")
+
+
+def test_cli_review_and_drift_accept_valid_dialect(state, tmp_path, capsys):
+    models = tmp_path / "models"
+    models.mkdir()
+    (models / "users.sql").write_text("SELECT id FROM raw.users", encoding="utf-8")
+
+    assert main(["drift", "--models", str(models), "--dialect", "postgres", "--json"]) == 0
+    drift_res = json.loads(capsys.readouterr().out)
+    assert drift_res["status"] in ("ok", "warn")
+
+    assert main(["review", "--models", str(models), "--dialect", "postgres", "--format", "json"]) in (0, 1, 2)
 
 
 @pytest.mark.parametrize("command", ["lint", "fix", "lineage", "impact", "top"])

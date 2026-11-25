@@ -25,7 +25,7 @@ from sqlglot.errors import SqlglotError
 
 from . import __version__, lineage
 from .config import ConfigError, Settings, find_config_file, table_section
-from .engines import EngineError, dialect_for
+from .engines import DIALECTS, EngineError, dialect_for
 from .lint import lint
 from .sqlsafety import classify
 
@@ -944,7 +944,8 @@ def add_arguments(p: Any) -> None:
     p.add_argument("--manifest-base", help="dbt manifest.json of the base (production) instead of git")
     p.add_argument("--manifest-head", help="dbt manifest.json of the branch")
     p.add_argument("--rehearse", action="store_true", help="Also run changed models on 1%% and 3%% samples")
-    p.add_argument("--dialect", default=None, help="duckdb, postgres, bigquery or snowflake (default: connection's)")
+    p.add_argument("--dialect", default=None, choices=sorted(DIALECTS),
+                   help="duckdb, postgres, bigquery or snowflake (default: connection's)")
     p.add_argument("--format", choices=["markdown", "json"], default="markdown", help="Format written by -o")
     p.add_argument("-o", "--output", metavar="PATH", help="Write the report to PATH")
     p.add_argument("--fail-on", help="Comma-separated: " + ", ".join(FLAG_KINDS) + " (or none)")
