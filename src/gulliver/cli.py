@@ -151,6 +151,11 @@ def _print_human(result: dict[str, Any]) -> None:
         if result.get("check"):
             print(f"-- check on target: {result['check'].get('status')} {result['check'].get('error') or ''}")
         return
+    if result.get("status") == "error" and result.get("error"):
+        print(f"error: {result['error']}")
+        if result.get("next_step"):
+            print(f"next: {result['next_step']}")
+        return
     print(json.dumps(result, indent=2, default=str))
 
 

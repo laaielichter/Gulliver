@@ -51,7 +51,11 @@ def test_negative_keep_last_preserves_all_files(settings, capsys, dry_run, as_js
     if as_json:
         args.append("--json")
     assert main(args) == 1
-    assert json.loads(capsys.readouterr().out)["status"] == "error"
+    out = capsys.readouterr().out
+    if as_json:
+        assert json.loads(out)["status"] == "error"
+    else:
+        assert out.startswith("error: ") and "--keep-last" in out and '"status"' not in out
     assert snapshot() == before
 
 
