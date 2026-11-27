@@ -216,6 +216,20 @@ def test_cli_receipt_list_unknown_status_lists_existing_statuses(demo_db, state,
     assert data["next_step"] == "Statuses in your receipts: ok."
 
 
+def test_cli_receipt_unknown_id_text_mode_is_plain_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    assert main(["receipt", "nosuch"]) == 1
+    out = capsys.readouterr().out
+    assert out.startswith("error: No receipt 'nosuch'.\n")
+    assert "next: Use the receipt_id returned by preflight, rehearse or run." in out
+    assert '"status"' not in out
+
+    assert main(["receipt", "nosuch", "--json"]) == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "error"
+    assert data["error"] == "No receipt 'nosuch'."
+
+
 def test_cli_translate_output_file(tmp_path, capsys):
     out = tmp_path / "model.bq.sql"
     assert main(["translate", "--from", "duckdb", "--to", "bigquery", "-o", str(out), "--json",
@@ -336,8 +350,8 @@ def test_cli_run_refuses_negative_max_rows_and_allows_zero(demo_db, state, capsy
     assert data["status"] == "error" and "-5" in data["error"] and data["next_step"]
 
     assert main(["--dsn", demo_db, "run", "--max-rows", "-2", "select count(*) from users"]) == 1
-    plain = json.loads(capsys.readouterr().out)
-    assert plain["status"] == "error" and "-2" in plain["error"]
+    plain = capsys.readouterr().out
+    assert plain.startswith("error: ") and "-2" in plain and '"status"' not in plain
 
     assert main(["--dsn", demo_db, "run", "--max-rows", "0", "--json", "select count(*) from users"]) == 0
     zero = json.loads(capsys.readouterr().out)
@@ -369,8 +383,8 @@ def test_cli_demo_refuses_invalid_events(tmp_path, capsys):
 
     plain_target = tmp_path / "cli_plain_bad.duckdb"
     assert main(["demo", str(plain_target), "--events", "-1"]) == 1
-    plain_data = json.loads(capsys.readouterr().out)
-    assert plain_data["status"] == "error" and "--events" in plain_data["error"]
+    plain_out = capsys.readouterr().out
+    assert plain_out.startswith("error: ") and "--events" in plain_out and '"status"' not in plain_out
     assert not plain_target.exists()
 
     ok_target = tmp_path / "ok.duckdb"
